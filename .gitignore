@@ -1,0 +1,31 @@
+# ==== The Machine: wat NIET naar Git gaat ====
+# (let op: in .gitignore moet commentaar op een eigen regel staan)
+
+# --- Persoonlijke en gevoelige data ---
+# koppelcode voor de telefooncamera
+camcode.txt
+# verbindingsgegevens van camera's (WebRTC-antwoorden)
+signal/
+# eigen certificaat (CA) en sleutels van deze pc
+*.cer
+*.pfx
+*.pem
+*.key
+_te_verwijderen/
+
+# --- Logboeken (IP-adressen, tunneladressen, verbindingen) ---
+*.log
+
+# --- Oude backups (Git bewaart de geschiedenis nu zelf) ---
+*_v[0-9]*_backup.*
+
+# --- Grote programma's/modellen die je los downloadt (GitHub-limiet 100 MB) ---
+# start.bat downloadt cloudflared.exe automatisch
+cloudflared.exe
+# whisper.cpp + ggml-small.bin, zie README.md
+whisper/
+
+# --- Systeembestanden ---
+Thumbs.db
+desktop.ini
+.DS_Store

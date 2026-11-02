@@ -1,0 +1,9 @@
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.onnx binary
+*.bin binary
+*.wasm binary
+*.png binary
+models/weapon_part_* binary
+models/voice_part_* binary

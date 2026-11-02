@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>The Machine // Camera</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --green: #33ff66; --green-dim: #1a8a3a; --white: #f2f2f2; --grey: #8a8a8a; --yellow: #f5d90a; --red: #ff2a2a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--white); font-family: "Share Tech Mono", Consolas, Menlo, monospace; }
+  body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  h1 { font-size: 13px; letter-spacing: .4em; color: var(--grey); font-weight: normal; margin: 18px 0 10px; }
+  #view { position: relative; flex: 1; min-height: 0; border: 1px solid var(--green-dim); background: #050505; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2) brightness(.85); }
+  video.mirror { transform: scaleX(-1); }
+  #ov { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #tag { position: absolute; top: 10px; right: 10px; border: 1px solid var(--white); padding: 2px 8px; font-size: 13px; letter-spacing: .15em; background: rgba(0,0,0,.5); }
+  #state { position: absolute; left: 10px; bottom: 10px; font-size: 13px; letter-spacing: .2em; background: rgba(0,0,0,.6); padding: 3px 8px; }
+  #state.ok { color: var(--green); } #state.warn { color: var(--yellow); } #state.err { color: var(--red); }
+  #state.live::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--red); margin-right: 8px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .15; } }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 16px; }
+  label { font-size: 10px; letter-spacing: .2em; color: var(--green-dim); display: flex; flex-direction: column; gap: 4px; }
+  input, select { background: #000; color: var(--green); border: 1px solid var(--green-dim); font: 16px "Share Tech Mono", Consolas, Menlo, monospace; padding: 8px; border-radius: 0; -webkit-appearance: none; }
+  button { grid-column: 1 / -1; background: transparent; color: var(--green); border: 1px solid var(--green); font: 14px "Share Tech Mono", Consolas, Menlo, monospace; letter-spacing: .25em; padding: 14px; }
+  button:active { background: var(--green); color: #000; }
+  button.stop { color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+<h1>THE MACHINE // REMOTE CAMERA</h1>
+<div id="view">
+  <video id="v" autoplay muted playsinline></video>
+  <canvas id="ov"></canvas>
+  <div id="tag">CAM_--</div>
+  <div id="state" class="warn">OFFLINE</div>
+</div>
+<form id="f">
+  <label>NAAM<input id="name" maxlength="16" value="" placeholder="JOUW NAAM" autocomplete="off"></label>
+  <label>KOPPELCODE<input id="code" inputmode="numeric" maxlength="6" autocomplete="off"></label>
+  <label>CAMERA<select id="facing"><option value="environment">ACHTER</option><option value="user">VOOR</option></select></label>
+  <label>KWALITEIT<select id="q"><option value="480">480p</option><option value="720" selected>720p</option></select></label>
+  <button id="go" type="submit">START CAMERA</button>
+</form>
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+{ const n = store.get("cam.name", ""); $("name").value = n.trim().toUpperCase() === "IPHONE" ? "" : n; }
+if (!$("name").value) $("name").focus();
+$("code").value = store.get("cam.code", "");
+$("facing").value = store.get("cam.facing", "environment");
+$("q").value = store.get("cam.q", "720");
+
+let pc = null, stream = null, meta = null, run = 0, wake = null;
+const state = (t, c) => { $("state").textContent = t; $("state").className = c; };
+const camName = () => $("name").value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_").slice(0, 16);
+const tagName = () => "CAM_" + camName();
+
+async function getCam() {
+  const h = +$("q").value;
+  const s = await navigator.mediaDevices.getUserMedia({ audio: false,
+    video: { facingMode: { ideal: $("facing").value }, width: { ideal: h * 16 / 9 }, height: { ideal: h }, frameRate: { ideal: 24, max: 30 } } });
+  $("v").srcObject = s; $("v").classList.toggle("mirror", $("facing").value === "user");
+  return s;
+}
+
+function stop() {
+  run++;
+  if (pc) pc.close(); pc = null; meta = null; marks = [];
+  if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
+  if (wake) wake.release().catch(() => {}); wake = null;
+  $("go").textContent = "START CAMERA"; $("go").classList.remove("stop");
+  state("OFFLINE", "warn");
+}
+
+async function start() {
+  if (!camName()) { state("VUL EERST EEN NAAM IN", "warn"); $("name").focus(); return; }
+  const my = ++run;
+  if (!navigator.mediaDevices) { state("GEEN CAMERA-TOEGANG (GEEN HTTPS?)", "err"); return; }
+  store.set("cam.name", $("name").value); store.set("cam.code", $("code").value);
+  store.set("cam.facing", $("facing").value); store.set("cam.q", $("q").value);
+  $("tag").textContent = tagName();
+  $("go").textContent = "STOP"; $("go").classList.add("stop");
+  try { stream = await getCam(); } catch (e) { state("CAMERA GEWEIGERD", "err"); return; }
+  try { wake = await navigator.wakeLock.request("screen"); } catch {}   // scherm aan laten, anders stopt iOS de camera
+
+  while (my === run) {
+    state("VERBINDEN...", "warn");
+    const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    // STUN: alleen nodig buiten het thuisnetwerk, om het publieke adres te vinden (er gaat geen beeld langs)
+    pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    meta = pc.createDataChannel("meta");
+    meta.onopen = () => sendMeta();
+    meta.onmessage = m => { try { const d = JSON.parse(m.data); if (Array.isArray(d.overlay)) onOverlay(d); } catch {} };
+    // "disconnected" is vaak maar even (wifi hapert): 6 seconden de kans geven om zich te herstellen
+    const myPc = pc;
+    const done = new Promise(r => myPc.onconnectionstatechange = () => {
+      const s = myPc.connectionState;
+      if (s === "failed" || s === "closed") r();
+      else if (s === "disconnected") { state("VERBINDING HAPERT...", "warn"); setTimeout(() => { if (myPc.connectionState !== "connected") r(); }, 6000); }
+    });
+    await pc.setLocalDescription(await pc.createOffer());
+    await iceDone(pc);
+    const r = await fetch("signal/offer", { method: "POST", body: JSON.stringify({ id, code: $("code").value.trim(), name: camName(), facing: $("facing").value, sdp: pc.localDescription.sdp }) }).catch(() => null);
+    if (!r || r.status === 403 || r.status === 429) {
+      pc.close();
+      if (!r) { state("SERVER NIET BEREIKBAAR", "err"); await sleep(3000); continue; }
+      stop(); state(r.status === 429 ? "TE VAAK FOUT // WACHT 10 MIN" : "VERKEERDE KOPPELCODE", "err"); return;
+    }
+    // wachten op het antwoord van The Machine (die kijkt elke 2 seconden)
+    let answer = null;
+    for (let i = 0; i < 30 && my === run && !answer; i++) {
+      await sleep(1000);
+      const a = await fetch("signal/answer?id=" + id, { cache: "no-store" }).catch(() => null);
+      if (a && a.status === 200) answer = await a.json();
+    }
+    if (my !== run) return;
+    if (!answer) { state("THE MACHINE REAGEERT NIET", "err"); pc.close(); await sleep(2000); continue; }
+    await pc.setRemoteDescription({ type: "answer", sdp: answer.sdp });
+    pc.onconnectionstatechange();
+    const live = setInterval(() => { if (pc?.connectionState === "connected") state("LIVE // CONNECTED", "ok live"); }, 500);
+    await done;
+    clearInterval(live);
+    if (my !== run) return;
+    if (pc) pc.close();
+    state("VERBINDING VERLOREN", "err");
+    await sleep(2000);
+  }
+}
+
+function iceDone(pc) {
+  return new Promise(r => {
+    if (pc.iceGatheringState === "complete") return r();
+    const t = setTimeout(r, 3000);
+    pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === "complete") { clearTimeout(t); r(); } };
+  });
+}
+
+// Kaders die The Machine terugstuurt (alleen van deze camera), in dezelfde stijl als het grote beeld
+const TYPE_COLORS = { ADMIN: "#f5d90a", IRRELEVANT: "#f2f2f2", THREAT: "#ff2a2a", INDIGO: "#1e7bff", FRIENDLY: "#2bd92b", ASSET: "#f5d90a" };
+const HOLD_MS = 700;      // gezicht niet meer gemeld: kader vervaagt in deze tijd
+const STALE_MS = 4000;    // helemaal geen update meer (camera klein in beeld of verbinding hapert): dan ook vervagen
+let marks = [], boxStyle = "series", lastUpdate = 0;
+const ctx = $("ov").getContext("2d");
+
+function onOverlay(d) {
+  const now = performance.now(), used = new Set();
+  if (d.style) boxStyle = d.style;
+  lastUpdate = now;
+  for (const b of d.overlay) {
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, size = Math.max(b.w, b.h);
+    let m = marks.find(m => !used.has(m) && Math.hypot(m.cx - cx, m.cy - cy) < size * .8);
+    if (!m) { m = { born: now, disp: null }; marks.push(m); }
+    used.add(m);
+    Object.assign(m, { b, cx, cy, seen: now, ghost: false });
+  }
+  marks = marks.filter(m => used.has(m) || now - m.seen < HOLD_MS);
+  marks.forEach(m => { if (!used.has(m)) m.ghost = true; });
+}
+
+function drawOverlay() {
+  requestAnimationFrame(drawOverlay);
+  const c = $("ov"), v = $("v");
+  const dpr = window.devicePixelRatio || 1, cw = c.clientWidth, ch = c.clientHeight;
+  if (c.width !== Math.round(cw * dpr) || c.height !== Math.round(ch * dpr)) { c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  const now = performance.now(), vw = v.videoWidth, vh = v.videoHeight;
+  if (!stream || !vw) { marks = []; return; }
+  const stale = now - lastUpdate > STALE_MS ? Math.max(0, 1 - (now - lastUpdate - STALE_MS) / HOLD_MS) : 1;
+  if (!stale) { marks = []; return; }
+  // zelfde rekensom als object-fit: cover; voorcamera is gespiegeld in beeld
+  const sc = Math.max(cw / vw, ch / vh), ox = (cw - vw * sc) / 2, oy = (ch - vh * sc) / 2;
+  const mirror = v.classList.contains("mirror");
+  for (const m of marks) {
+    const b = m.b, bx = mirror ? 1 - b.x - b.w : b.x;
+    const size = Math.max(b.w * vw, b.h * vh) * sc * 1.35;
+    const cx = (bx + b.w / 2) * vw * sc + ox, cy = (b.y + b.h / 2) * vh * sc + oy;
+    const d = m.disp || (m.disp = { cx, cy, size });
+    d.cx += (cx - d.cx) * .35; d.cy += (cy - d.cy) * .35; d.size += (size - d.size) * .35;
+    const k = Math.min(1, (now - m.born) / 450);
+    const fade = (m.ghost ? Math.max(0, 1 - (now - m.seen) / HOLD_MS) : 1) * stale;
+    const s = d.size * (1 + (1 - easeOut(k)) * 0.8);
+    const type = { color: b.c || TYPE_COLORS[b.t] || "#f2f2f2", dash: b.d || null };
+    (boxStyle === "classic" ? classicBox : seriesBox)(d.cx - s / 2, d.cy - s / 2, s, type, b.t || "", b.n, k, fade);
+  }
+}
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+
+function label(text, cx, y, font, color) { ctx.font = font; ctx.textAlign = "center"; ctx.fillStyle = color; ctx.fillText(text, cx, y); }
+
+// Kader zoals in de serie: afgeronde stippellijn, dikke hoeken, streepjes in het midden van elke zijde
+function seriesBox(x, y, s, type, text, name, k, fade) {
+  const color = type.color, dash = type.dash || color;
+  const lw = Math.max(2, s * 0.014), r = s * 0.07, C = s * 0.2, tick = s * 0.08;
+  ctx.globalAlpha = (0.3 + 0.7 * k) * fade;
+  ctx.shadowColor = color; ctx.shadowBlur = 14;
+  ctx.lineCap = "butt";
+  ctx.strokeStyle = dash;
+  ctx.lineWidth = type.dash ? lw * 1.4 : lw; ctx.setLineDash([s * 0.045, s * 0.03]);
+  ctx.beginPath(); ctx.roundRect(x, y, s, s, r); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw * 2.2;
+  ctx.beginPath();
+  ctx.moveTo(x, y + C); ctx.arcTo(x, y, x + C, y, r); ctx.lineTo(x + C, y);
+  ctx.moveTo(x + s - C, y); ctx.arcTo(x + s, y, x + s, y + C, r); ctx.lineTo(x + s, y + C);
+  ctx.moveTo(x + s, y + s - C); ctx.arcTo(x + s, y + s, x + s - C, y + s, r); ctx.lineTo(x + s - C, y + s);
+  ctx.moveTo(x + C, y + s); ctx.arcTo(x, y + s, x, y + s - C, r); ctx.lineTo(x, y + s - C);
+  ctx.stroke();
+  ctx.lineWidth = lw * 1.8;
+  ctx.beginPath();
+  ctx.moveTo(x + s / 2, y); ctx.lineTo(x + s / 2, y + tick);
+  ctx.moveTo(x + s / 2, y + s); ctx.lineTo(x + s / 2, y + s - tick);
+  ctx.moveTo(x, y + s / 2); ctx.lineTo(x + tick * 1.3, y + s / 2);
+  ctx.moveTo(x + s, y + s / 2); ctx.lineTo(x + s - tick * 1.3, y + s / 2);
+  ctx.stroke();
+  const fs = Math.max(18, Math.min(34, s * 0.12));
+  ctx.shadowBlur = 10;
+  label(text, x + s / 2, y + s + fs * 1.05, `${fs}px VT323, Consolas, monospace`, color);
+  if (name) label(name, x + s / 2, y + s + fs * 1.95, `${fs * .7}px VT323, Consolas, monospace`, color);
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+}
+
+// Eerdere stijl: stippelvierkant met hoeken en een label-tab
+function classicBox(x, y, s, type, text, name, k, fade) {
+  const color = type.color, C = s * 0.18;
+  ctx.globalAlpha = (0.35 + 0.65 * k) * fade;
+  ctx.strokeStyle = type.dash || color;
+  ctx.setLineDash([3, 5]); ctx.lineWidth = type.dash ? 2 : 1; ctx.strokeRect(x, y, s, s); ctx.setLineDash([]);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = text === "ADMIN" ? 4 : 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y + C); ctx.lineTo(x, y); ctx.lineTo(x + C, y);
+  ctx.moveTo(x + s - C, y); ctx.lineTo(x + s, y); ctx.lineTo(x + s, y + C);
+  ctx.moveTo(x + s, y + s - C); ctx.lineTo(x + s, y + s); ctx.lineTo(x + s - C, y + s);
+  ctx.moveTo(x + C, y + s); ctx.lineTo(x, y + s); ctx.lineTo(x, y + s - C);
+  ctx.stroke();
+  const t = name ? `${text}: ${name}` : text;
+  ctx.font = "15px 'Share Tech Mono', Consolas, monospace"; ctx.textAlign = "left";
+  const tw = ctx.measureText(t).width + 14;
+  ctx.fillStyle = color; ctx.fillRect(x, y - 24, tw, 20);
+  ctx.fillStyle = "#000"; ctx.fillText(t, x + 7, y - 9);
+  ctx.globalAlpha = 1;
+}
+requestAnimationFrame(drawOverlay);
+
+function sendMeta() { if (meta && meta.readyState === "open") meta.send(JSON.stringify({ name: camName(), facing: $("facing").value })); }
+
+// tijdens het uitzenden van camera wisselen zonder de verbinding te verbreken
+$("facing").onchange = $("q").onchange = async () => {
+  if (!stream || !pc) return;
+  store.set("cam.facing", $("facing").value); store.set("cam.q", $("q").value);
+  stream.getTracks().forEach(t => t.stop());
+  try { stream = await getCam(); } catch { state("CAMERA GEWEIGERD", "err"); return; }
+  const sender = pc.getSenders().find(s => s.track === null || s.track.kind === "video");
+  if (sender) await sender.replaceTrack(stream.getVideoTracks()[0]);
+  sendMeta();
+};
+
+$("f").onsubmit = e => { e.preventDefault(); if (stream) stop(); else start(); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && stream && !wake) navigator.wakeLock?.request("screen").then(w => wake = w).catch(() => {}); });
+</script>
+</body>
+</html>
