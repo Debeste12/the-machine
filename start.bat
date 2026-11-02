@@ -1,5 +1,7 @@
 @echo off
 title THE MACHINE
+rem eerste keer: installeert zelf wat niet in Git staat (whisper.cpp + spraakmodel, Ollama + gemma3:12b); daarna alleen een snelle controle
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
 rem spraakherkenning (whisper.cpp op de GPU), in een eigen geminimaliseerd venster
 if exist "%~dp0whisper\bin\Release\whisper-server.exe" start "THE MACHINE // VOICE" /min "%~dp0whisper\bin\Release\whisper-server.exe" -m "%~dp0whisper\ggml-small.bin" --host 127.0.0.1 --port 8178 -l en -bs 5
 rem extra camera's (telefoon via https), in een eigen geminimaliseerd venster

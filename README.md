@@ -38,8 +38,10 @@ The Machine is a surveillance-style terminal that runs entirely on your own PC, 
 - Windows 10 or 11
 - Chrome or Edge
 - A webcam
-- [Ollama](https://ollama.com) with the `gemma3:12b` model (about 8 GB)
+- About 10 GB of free disk space and an internet connection for the first start
 - Optional: an NVIDIA GPU for fast speech recognition with whisper
+
+Ollama, the `gemma3:12b` model and whisper.cpp are installed automatically by `start.bat`.
 
 ## Installation
 
@@ -47,14 +49,15 @@ The Machine is a surveillance-style terminal that runs entirely on your own PC, 
    ```
    git clone https://github.com/Debeste12/the-machine.git
    ```
-2. Install Ollama and download the model:
-   ```
-   ollama pull gemma3:12b
-   ```
-3. Optional, for speech input: put whisper.cpp in the `whisper` folder
-   - `whisper/bin/Release/whisper-server.exe` with its DLLs (CUDA build)
-   - `whisper/ggml-small.bin`
-4. Double-click **`start.bat`**.
+2. Double-click **`start.bat`**. That's it.
+
+On the first start, `start.bat` (through `setup.ps1`) installs everything that is not in this repository by itself:
+
+- **whisper.cpp** for speech input: the CUDA build if an NVIDIA GPU is found, otherwise the CPU build, in `whisper/bin/Release/`, plus the model `whisper/ggml-small.bin` (about 470 MB)
+- **Ollama** via `winget` (or the official installer if winget is missing), followed by `ollama pull gemma3:12b` (about 8 GB)
+- **cloudflared.exe** for the phone camera tunnel
+
+The first start takes a while because of these downloads. After that, each start only does a quick check. If a step fails, The Machine starts without that part and tries again next time.
 
 `start.bat` starts everything in its own minimized window: the web server, the camera server, the Cloudflare tunnel (`cloudflared.exe` is downloaded automatically the first time), Ollama and whisper. Then it opens The Machine in your browser.
 
@@ -94,6 +97,7 @@ start.bat           starts everything
 server.ps1          local web server (port 8080)
 camserver.ps1       HTTPS camera server for phones
 signal.ps1          signalling for the camera connections
+setup.ps1           first-run installer (whisper, Ollama, gemma3:12b)
 ollama.ps1          starts Ollama
 weapon-worker.js    weapon detection in a background worker
 lib/                face-api.js and ONNX Runtime
