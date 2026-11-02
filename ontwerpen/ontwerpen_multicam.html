@@ -1,0 +1,185 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--green:#33ff66;--green-dim:#1a8a3a;--white:#f2f2f2;--grey:#8a8a8a;--yellow:#f5d90a;--red:#ff2a2a;--hud:"Share Tech Mono","JetBrains Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--white);font-family:var(--hud);overflow:hidden}
+#app{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(380px,1fr);height:100%}
+#feed{position:relative;overflow:hidden;background:#000}
+#feed::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:20;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.55) 100%)}
+canvas.f{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;z-index:10;font-size:13px;letter-spacing:.18em;text-shadow:0 0 4px #000}
+#modeTag{top:16px;left:50%;transform:translateX(-50%);padding:2px 10px;border:1px solid var(--white);background:rgba(0,0,0,.5)}
+#camTag{top:16px;right:20px;text-align:right;font-size:15px;line-height:1.3}
+#camTag .id{border:1px solid var(--white);padding:2px 8px;display:inline-block;margin-bottom:4px;background:rgba(0,0,0,.5)}
+#hudBL{bottom:16px;left:20px;color:var(--grey)} #hudBR{bottom:16px;right:20px;color:var(--grey)}
+#sim{position:absolute;top:16px;left:20px;width:250px;z-index:11;background:rgba(0,0,0,.72);border:1px solid rgba(51,255,102,.45);font-size:11px;letter-spacing:.06em}
+#sim .head{background:var(--white);color:#000;padding:3px 8px;font-size:13px}
+#sim .sub{padding:2px 8px;color:var(--grey);font-size:9px;letter-spacing:.15em;border-bottom:1px solid #333}
+#sim .sec{padding:5px 8px 7px;border-bottom:1px solid #222}
+#sim .lbl{color:var(--grey);font-size:9px;letter-spacing:.15em}
+#sim .obj{font-size:12px;margin:2px 0 4px}
+#sim .bar{padding:2px 6px;font-size:11px;text-align:center;color:#000}
+.bg-green{background:var(--green)} .bg-grey{background:#555;color:#ddd!important}
+#side{border-left:1px solid #222;display:flex;flex-direction:column;background:#000}
+#stats{padding:14px 18px;border-bottom:1px solid #222}
+#stats h2{margin:0 0 10px;font-weight:normal;font-size:13px;letter-spacing:.3em;color:var(--grey);display:flex;justify-content:space-between}
+#statGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{border:1px solid #222;padding:6px 8px}.stat .k{font-size:10px;color:var(--grey);letter-spacing:.15em}.stat .v{font-size:16px;color:var(--green)}
+#term{flex:1;padding:12px 18px;font-family:"VT323","JetBrains Mono",monospace;font-size:19px;color:var(--green);line-height:1.25}
+#term .h{font-family:var(--hud);font-size:12px;color:var(--grey);letter-spacing:.2em;margin-bottom:8px;border-bottom:1px solid #222;padding-bottom:6px}
+.dim{color:var(--green-dim)}
+/* ======= gemeenschappelijk: tegel ======= */
+.tile{position:absolute;overflow:hidden;background:#050505;transition:all .6s cubic-bezier(.2,.8,.2,1)}
+.tile canvas{position:absolute;inset:0;width:100%;height:100%}
+.br{position:absolute;inset:0;pointer-events:none;z-index:3}
+.br i{position:absolute;width:14px;height:14px;border-color:rgba(242,242,242,.75);border-style:solid;border-width:0}
+.br i:nth-child(1){left:0;top:0;border-left-width:2px;border-top-width:2px}
+.br i:nth-child(2){right:0;top:0;border-right-width:2px;border-top-width:2px}
+.br i:nth-child(3){left:0;bottom:0;border-left-width:2px;border-bottom-width:2px}
+.br i:nth-child(4){right:0;bottom:0;border-right-width:2px;border-bottom-width:2px}
+.tile .tl{position:absolute;left:8px;top:6px;z-index:4;font-size:11px;letter-spacing:.16em;background:rgba(0,0,0,.65);padding:1px 6px}
+.tile .tr{position:absolute;right:8px;top:6px;z-index:4;font-size:10px;letter-spacing:.14em;color:var(--grey)}
+.tile .bl{position:absolute;left:8px;bottom:6px;z-index:4;font-size:10px;letter-spacing:.12em;color:var(--grey)}
+.rec{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:6px;vertical-align:1px}
+.tile.main .tl{background:var(--white);color:#000}
+.tile.alert .br i{border-color:var(--yellow)}
+.tile.alert .tl{background:var(--yellow);color:#000}
+.vlabel{position:absolute;white-space:nowrap;z-index:12;font-size:11px;letter-spacing:.3em;color:var(--grey)}
+</style></head>
+<body>
+<div id="app">
+  <section id="feed"></section>
+  <section id="side">
+    <div id="stats"><h2><span>SYSTEM STATUS</span><span>02:41:17</span></h2>
+      <div id="statGrid">
+        <div class="stat"><div class="k">AI CORE</div><div class="v">ONLINE</div></div>
+        <div class="stat"><div class="k">VISION</div><div class="v">ACTIVE</div></div>
+        <div class="stat"><div class="k">CAMERA FEEDS</div><div class="v" id="nfeeds">4 / 4</div></div>
+        <div class="stat"><div class="k">THREAT LEVEL</div><div class="v">LOW</div></div>
+        <div class="stat"><div class="k">CLEARANCE</div><div class="v">ADMIN</div></div>
+        <div class="stat"><div class="k">MODE</div><div class="v">MONITORING</div></div>
+      </div></div>
+    <div id="term"><div class="h">THE MACHINE // TERMINAL</div>
+      <div id="tlog"></div>
+    </div>
+  </section>
+</div>
+<script>
+const P = new URLSearchParams(location.search), V = P.get("v") || "1";
+const feed = document.getElementById("feed");
+// ---------- nepcamera: grijze kamer met silhouetten ----------
+function rnd(s){return()=>{s=(s*16807)%2147483647;return s/2147483647}}
+function scene(cv, seed, people, opts={}){
+  const r=rnd(seed), w=cv.width=opts.w||640, h=cv.height=opts.h||400, c=cv.getContext("2d");
+  const g=c.createLinearGradient(0,0,0,h); const b=40+r()*40;
+  g.addColorStop(0,`rgb(${b},${b},${b})`);g.addColorStop(.62,`rgb(${b*.7},${b*.7},${b*.7})`);g.addColorStop(.63,`rgb(${b*.45},${b*.45},${b*.45})`);g.addColorStop(1,"#0a0a0a");
+  c.fillStyle=g;c.fillRect(0,0,w,h);
+  // raam / deur / kasten
+  for(let i=0;i<3;i++){const x=r()*w*.8,y=r()*h*.25,ww=w*(.12+r()*.2),hh=h*(.2+r()*.3);const l=60+r()*120;c.fillStyle=`rgba(${l},${l},${l},${.35+r()*.4})`;c.fillRect(x,y,ww,hh);
+    c.strokeStyle="rgba(0,0,0,.4)";c.lineWidth=3;c.strokeRect(x,y,ww,hh);}
+  c.fillStyle="rgba(20,20,20,.85)";c.fillRect(w*(.05+r()*.3),h*.66,w*(.35+r()*.3),h*.06);
+  // mensen
+  for(const p of people){const x=p.x*w,y=p.y*h,s=p.s*h;
+    const gg=c.createRadialGradient(x,y,s*.05,x,y,s*.5);gg.addColorStop(0,`rgba(${p.l||170},${p.l||170},${p.l||170},1)`);gg.addColorStop(1,"rgba(60,60,60,1)");
+    c.fillStyle=gg;c.beginPath();c.ellipse(x,y,s*.32,s*.42,0,0,7);c.fill();
+    c.fillStyle="rgba(25,25,25,1)";c.beginPath();c.ellipse(x,y+s*1.05,s*.85,s*.65,0,Math.PI,0);c.fill();c.fillRect(x-s*.85,y+s*1.05,s*1.7,h);
+    c.fillStyle="rgba(15,15,15,.9)";c.beginPath();c.ellipse(x,y-s*.22,s*.34,s*.24,0,Math.PI,0);c.fill();
+  }
+  // ruis + korrel
+  const id=c.getImageData(0,0,w,h),d=id.data;for(let i=0;i<d.length;i+=4){const n=(r()-.5)*28;const v=(d[i]+d[i+1]+d[i+2])/3*1.1+n;d[i]=d[i+1]=d[i+2]=v}
+  c.putImageData(id,0,0);
+  // kaders in POI-stijl
+  for(const p of people){const x=p.x*w,y=p.y*h,s=p.s*h,bx=x-s*.55,by=y-s*.7,bw=s*1.1,bh=s*1.3;
+    const col=p.box==="admin"?"#f5d90a":p.box==="threat"?"#ff2a2a":"#f2f2f2";
+    c.strokeStyle=col;c.lineWidth=Math.max(1.5,w/420);
+    if(p.box==="admin"){c.setLineDash([8,5]);c.strokeRect(bx,by,bw,bh);c.setLineDash([]);
+      const k=bw*.2;c.lineWidth*=2;[[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]].forEach(([a,b2,dx,dy])=>{c.beginPath();c.moveTo(a+dx*k,b2);c.lineTo(a,b2);c.lineTo(a,b2+dy*k);c.stroke()})}
+    else {c.strokeRect(bx,by,bw,bh)}
+    const fs=Math.max(10,w/48);c.font=`${fs}px "Share Tech Mono",monospace`;
+    if(p.name){c.fillStyle=col;c.fillRect(bx,by+bh+2,c.measureText(p.name).width+10,fs+6);c.fillStyle="#000";c.fillText(p.name,bx+5,by+bh+fs+2)}
+  }
+  return cv;
+}
+const CAMS=[
+  {id:"CAM_01_DESK",seed:11,people:[{x:.5,y:.42,s:.3,box:"admin",name:"ADMIN // DAAN"}],loc:"BUREAU",res:"1280x720",lat:"0 MS"},
+  {id:"CAM_02_PHONE",seed:777,people:[{x:.34,y:.45,s:.22,box:"irr",name:"IRRELEVANT"},{x:.7,y:.5,s:.18,box:"irr"}],loc:"WOONKAMER",res:"960x540",lat:"180 MS"},
+  {id:"CAM_03_LAPTOP",seed:4242,people:[],loc:"GANG",res:"640x480",lat:"3.1 S"},
+  {id:"CAM_04_PHONE",seed:99,people:[{x:.6,y:.48,s:.26,box:"irr",name:"UNKNOWN"}],loc:"KEUKEN",res:"960x540",lat:"220 MS"},
+];
+function tile(cam,cls="",w=640,h=400){
+  const t=document.createElement("div");t.className="tile "+cls;
+  const cv=document.createElement("canvas");scene(cv,cam.seed,cam.people,{w,h});t.appendChild(cv);
+  t.insertAdjacentHTML("beforeend",`<div class="br"><i></i><i></i><i></i><i></i></div><span class="tl">${cam.id}</span><span class="tr"><span class="rec"></span>${cam.loc}</span><span class="bl">${cam.res} · ${cam.lat} · ${cam.people.length} SUBJ</span>`);
+  feed.appendChild(t);return t;
+}
+function hud(sim=true,camId="CAM_01_DESK"){
+  feed.insertAdjacentHTML("beforeend",`<div class="hud" id="modeTag">MONITORING</div>
+  <div class="hud" id="camTag"><span class="id">${camId}</span><br>16:41:09</div>
+  <div class="hud" id="hudBL">SUBJECTS: 4</div><div class="hud" id="hudBR">28 FPS</div>`+(sim?`
+  <div id="sim"><div class="head">OPTION 004,113</div><div class="sub">SIMULATION ACTIVITY</div>
+  <div class="sec"><div class="lbl">PRIMARY OBJECTIVE:</div><div class="obj">MONITOR ALL FEEDS</div><div class="bar bg-grey">4 FEEDS ACTIVE</div></div>
+  <div class="sec" style="border-bottom:0"><div class="lbl">SECONDARY OBJECTIVE:</div><div class="obj">ASSESS SUBJECTS</div><div class="bar bg-green">NO THREATS DETECTED</div></div></div>`:""));
+}
+const W=()=>feed.clientWidth,H=()=>feed.clientHeight;
+function place(t,x,y,w,h){Object.assign(t.style,{left:x+"px",top:y+"px",width:w+"px",height:h+"px"})}
+function log(lines){document.getElementById("tlog").innerHTML=lines.map(l=>`<div class="${l[0]=='>'?'':'dim'}">${l}</div>`).join("")}
+function svg(html){feed.insertAdjacentHTML("beforeend",`<svg style="position:absolute;inset:0;width:100%;height:100%;z-index:9;pointer-events:none" viewBox="0 0 ${W()} ${H()}">${html}</svg>`)}
+
+// ============ 1. ADAPTIEF MOZAIEK ============
+if(V==="1"){
+  const pad=20,top=70,bot=44,gw=W()-pad*2,gh=H()-top-bot,gap=6;
+  const mw=Math.round(gw*.69);
+  const t0=tile(CAMS[0],"main",1100,700);place(t0,pad,top,mw,gh);
+  const sw=gw-mw-gap,sh=(gh-gap*2)/3;
+  [1,2,3].forEach((i,k)=>{const t=tile(CAMS[i],i==3?"alert":"",480,300);place(t,pad+mw+gap,top+k*(sh+gap),sw,sh)});
+  hud(true);
+  feed.insertAdjacentHTML("beforeend",`<div class="vlabel" style="bottom:16px;left:50%;transform:translateX(-50%)">AUTO-REGIE · GROOTSTE BEELD = MEESTE ACTIVITEIT</div>`);
+  log(["> /cams","4 FEEDS ONLINE · LAYOUT: MOZAIEK","CAM_04_PHONE: NIEUW SUBJECT GEDETECTEERD","> wissel naar CAM_04 over 2s ..."]);
+}
+// ============ 2. NETWERK / TRIANGULATIE ============
+if(V==="2"){
+  const t0=tile(CAMS[0],"main",1100,700);place(t0,0,0,W(),H());t0.style.filter="brightness(.55)";
+  t0.querySelectorAll(".tl,.tr,.bl,.br").forEach(e=>e.remove());
+  const spots=[[W()-330,90,290,180],[W()-380,H()-260,250,156],[60,H()-250,270,168]];
+  const hub=[W()*.5,H()*.8];
+  [1,2,3].forEach((i,k)=>{const [x,y,w,h]=spots[k];const t=tile(CAMS[i],i==1?"alert":"",480,300);place(t,x,y,w,h);t.style.boxShadow="0 0 0 1px rgba(242,242,242,.25),0 10px 30px rgba(0,0,0,.8)"});
+  let lines="";spots.forEach(([x,y,w,h],k)=>{const cx=x+w/2,cy=y+h/2;const ex=x+(cx<hub[0]?w:0),ey=y+(cy<hub[1]?h:0);
+    lines+=`<line x1="${hub[0]}" y1="${hub[1]}" x2="${ex}" y2="${ey}" stroke="${k==0?'#f5d90a':'rgba(242,242,242,.45)'}" stroke-width="1.2" stroke-dasharray="${k==0?'':'4 6'}"/>
+    <circle cx="${ex}" cy="${ey}" r="3" fill="${k==0?'#f5d90a':'#f2f2f2'}"/>
+    <text x="${(hub[0]+ex)/2+6}" y="${(hub[1]+ey)/2-6}" fill="${k==0?'#f5d90a':'#8a8a8a'}" font-size="10" letter-spacing="2" font-family="Share Tech Mono">${['LINK 0.18S','LINK 3.1S','LINK 0.22S'][k]}</text>`});
+  svg(`${lines}<circle cx="${hub[0]}" cy="${hub[1]}" r="38" fill="none" stroke="#f2f2f2" stroke-width="1"/><circle cx="${hub[0]}" cy="${hub[1]}" r="52" fill="none" stroke="rgba(242,242,242,.3)" stroke-dasharray="2 5"/>
+  <rect x="${hub[0]-6}" y="${hub[1]-6}" width="12" height="12" fill="#f2f2f2"/>
+  <text x="${hub[0]}" y="${hub[1]+72}" text-anchor="middle" fill="#f2f2f2" font-size="11" letter-spacing="3" font-family="Share Tech Mono">THE MACHINE · NODE 01</text>`);
+  hud(true);
+  feed.insertAdjacentHTML("beforeend",`<div class="vlabel" style="bottom:16px;left:50%;transform:translateX(-50%)">NETWERK · ZWEVENDE FEEDS, LIJNEN VOLGEN HET SUBJECT</div>`);
+  log(["> /cams","NETWORK: 4 NODES","SUBJECT HANDOFF: CAM_01 → CAM_02","> triangulatie actief"]);
+}
+// ============ 3. VIDEOMUUR (3D) ============
+if(V==="3"){
+  feed.style.perspective="1300px";
+  const cw=W()*.56,ch=cw*.62,cx=(W()-cw)/2,cy=(H()-ch)/2-10;
+  const conf=[[0,cx,cy,cw,ch,"none"],[1,cx-cw*.62,cy+ch*.06,cw*.52,ch*.88,"rotateY(38deg)"],[3,cx+cw*1.1,cy+ch*.06,cw*.52,ch*.88,"rotateY(-38deg)"],[2,cx+cw*.24,cy+ch+16,cw*.52,ch*.32,"rotateX(52deg)"]];
+  conf.forEach(([i,x,y,w,h,tr],k)=>{const t=tile(CAMS[i],k==0?"main":(i==3?"alert":""),k==0?1000:500,k==0?620:320);place(t,x,y,w,h);t.style.transform=tr;t.style.transformOrigin=k==1?"right center":k==2?"left center":"center top";
+    if(k)t.style.filter="brightness(.75)";t.style.boxShadow="0 0 40px rgba(0,0,0,.9)"});
+
+  hud(false);
+  svg(`<text x="${W()/2}" y="${cy-18}" text-anchor="middle" fill="#8a8a8a" font-size="11" letter-spacing="4" font-family="Share Tech Mono">◀  03 / 04  ▶</text>`);
+  feed.insertAdjacentHTML("beforeend",`<div class="vlabel" style="bottom:16px;left:50%;transform:translateX(-50%)">VIDEOMUUR · PIJLTJES / SCROLL DRAAIT DE MUUR</div>`);
+  log(["> /cams muur","LAYOUT: VIDEOMUUR","CENTER: CAM_01_DESK","> ← → om te draaien"]);
+}
+// ============ 4. ALLEEN BIJ ACTIE (pop-up feeds) ============
+if(V==="4"){
+  const t0=tile(CAMS[0],"main",1100,700);place(t0,0,0,W(),H());t0.querySelectorAll(".tl,.tr,.bl,.br").forEach(e=>e.remove());
+  const t=tile(CAMS[3],"alert",560,350);place(t,W()-400,H()-300,360,225);t.style.boxShadow="0 0 0 1px var(--yellow),0 0 30px rgba(245,217,10,.25)";
+  t.insertAdjacentHTML("beforeend",`<div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:#222;z-index:5"><i style="display:block;height:100%;width:62%;background:var(--yellow)"></i></div>`);
+  hud(true);
+  // slapende feeds als mini-indicatoren
+  feed.insertAdjacentHTML("beforeend",`<div class="hud" style="top:110px;right:20px;text-align:right;font-size:11px;line-height:2;color:#8a8a8a">
+    <div>CAM_02_PHONE <span style="color:#f2f2f2">●</span> 2 SUBJ</div><div>CAM_03_LAPTOP <span>○</span> STIL</div><div style="color:var(--yellow)">CAM_04_PHONE ● NIEUW</div></div>
+    <div class="hud" style="right:40px;bottom:${300+28}px;font-size:11px;color:var(--yellow);background:rgba(0,0,0,.6);padding:2px 6px">▲ ACTIVITEIT OP CAM_04 · VERDWIJNT NA 8S</div>`);
+  feed.insertAdjacentHTML("beforeend",`<div class="vlabel" style="bottom:16px;left:50%;transform:translateX(-50%)">ALLEEN BIJ ACTIE · FEEDS VERSCHIJNEN ALS ER IETS GEBEURT</div>`);
+  log(["> /cams","4 FEEDS · 1 ZICHTBAAR","CAM_04_PHONE: NIEUW SUBJECT → POP-UP","> klik pop-up = hoofdbeeld"]);
+}
+</script></body></html>
