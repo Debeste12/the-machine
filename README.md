@@ -1,15 +1,21 @@
 # The Machine
 
-Lokale recreatie van "The Machine" uit Person of Interest: `index.html` in de browser, met Ollama (`gemma3:12b`) als taalmodel.
+A local recreation of "The Machine" from the TV series *Person of Interest*. It runs as `index.html` in the browser, with Ollama (`gemma3:12b`) as the offline language model.
 
-## Starten
-Dubbelklik `start.bat`. Die start de webserver, de cameraserver, de Cloudflare-tunnel, Ollama en (als aanwezig) whisper voor spraak.
+## Features
+- Surveillance terminal UI in the style of the show
+- Face recognition, voice recognition and weapon detection, all running locally
+- Multiple cameras, including phone cameras over HTTPS
+- Offline AI via Ollama
 
-## Niet in Git (los neerzetten na een verse clone)
-- **Ollama** met `gemma3:12b`: installeer via https://ollama.com en `ollama pull gemma3:12b`.
-- **cloudflared.exe**: wordt door `start.bat` zelf gedownload.
-- **whisper/** (spraakherkenning, ruim 1 GB): `whisper/bin/Release/` met whisper.cpp (CUDA-build, `whisper-server.exe` + dll's) en `whisper/ggml-small.bin`.
+## Getting started
+Double-click `start.bat`. It starts the web server, the camera server, the Cloudflare tunnel, Ollama and (if present) whisper for speech recognition.
+
+## Not included in this repository (set up after cloning)
+- **Ollama** with `gemma3:12b`: install from https://ollama.com and run `ollama pull gemma3:12b`.
+- **cloudflared.exe**: downloaded automatically by `start.bat`.
+- **whisper/** (speech recognition, over 1 GB): `whisper/bin/Release/` with whisper.cpp (CUDA build, `whisper-server.exe` and DLLs) and `whisper/ggml-small.bin`.
 
 ## Privacy
-Gezichts- en stemprofielen, dossiers en instellingen staan in de browser (localStorage), niet in deze map.
-Koppelcode, certificaten, signaalbestanden en logs staan in `.gitignore` en gaan nooit mee.
+Face and voice profiles, dossiers and settings are stored in the browser (localStorage), not in this folder.
+The pairing code, certificates, signalling files and logs are listed in `.gitignore` and are never committed.
