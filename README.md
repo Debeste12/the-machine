@@ -8,6 +8,7 @@
 
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6)
 ![AI](https://img.shields.io/badge/AI-Ollama%20gemma3%3A12b-black)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Runs](https://img.shields.io/badge/runs-100%25%20local-33ff66)
 
 </div>
@@ -111,6 +112,10 @@ ontwerpen/          design sketches
 - Face and voice profiles, dossiers and settings are stored in your browser (localStorage), not in this repository.
 - The pairing code, certificates, signalling files and logs are excluded through `.gitignore`.
 - Only use it on people who know about it and agree.
+
+## License
+
+The Machine is licensed under the [GNU Affero General Public License v3.0](LICENSE). Third-party components keep their own licenses, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Disclaimer
 
