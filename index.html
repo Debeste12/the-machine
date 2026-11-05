@@ -3647,12 +3647,13 @@ const MAP_IMG_MAX = 1600;           // plattegrond verkleinen tot zoveel pixels 
 const MAP_DOTS = 6;                 // zoveel stippen per camera, daarna "+n"
 const MAP_FLASH_MS = 10000;         // zo lang na een overdracht loopt er een lichtje over de route
 let mapCfg = store.get(STORE.map, null) || { img: null, cams: {} }, mapEdit = false, mapRoutesOn = true, mapSelCam = null, mapDrag = null, mapDragged = 0;
-if (!mapCfg.cams) mapCfg.cams = {};
+mapCfg.cams = {};                   // camera's worden NIET onthouden: een camera kan eenmalig voor een test aangesloten zijn
 mapCfg = mapManual(mapCfg); try { localStorage.removeItem("machine.mapmem"); } catch {}   // AUTO LAYOUT van een vorige sessie vergeten
+saveMap();                          // camera's van een vorige sessie ook uit de opslag wissen
 const camKey = tag => String(tag || "").replace(/^CAM_\d+_/, "");
 const mapAdmin = () => cRole === "ADMIN" || cRole === "TEMP ADMIN";
 function saveMap() {
-  try { localStorage.setItem(STORE.map, JSON.stringify(mapManual(mapCfg))); }   // alleen wat met de hand is gedaan blijft bewaard
+  try { localStorage.setItem(STORE.map, JSON.stringify({ ...mapManual(mapCfg), cams: {} })); }   // alleen de plattegrond blijft bewaard, de camera's niet
   catch (e) { hudMessage("MAP NOT SAVED // FLOORPLAN TOO LARGE", "var(--red)", 3000); }
 }
 // wie staat nu (of net nog) bij welke camera: { NAAM: [{ s, live, ago }] }
@@ -3705,7 +3706,7 @@ function cMapHtml(W) {
   const E = escapeHtml, now = Date.now(), from = now - C_RANGES[cRange], admin = mapAdmin(), edit = mapEdit && admin;
   const ok = new Set(cPeople().map(p => p.id)), sp = cSel && personById(cSel);
   const w = Math.max(320, W - (W > 700 ? 272 : 0)), h = Math.max(220, Math.round(w * (mapCfg.ar || .62)));
-  const known = [...new Set([...feeds.map(f => camKey(f.tag)), ...sightings.map(s => camKey(s.cam))])].sort();
+  const known = mapCamsKnown();       // alleen camera's die deze sessie online zijn (geweest)
   const placed = Object.keys(mapCfg.cams), unplaced = known.filter(k => !mapCfg.cams[k]);
   const P = k => ({ x: mapCfg.cams[k].x * w, y: mapCfg.cams[k].y * h });
   const feedOf = k => feeds.find(f => camKey(f.tag) === k), live = mapLive();
