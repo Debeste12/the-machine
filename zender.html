@@ -27,6 +27,10 @@
   button { grid-column: 1 / -1; background: transparent; color: var(--green); border: 1px solid var(--green); font: 14px "Share Tech Mono", Consolas, Menlo, monospace; letter-spacing: .25em; padding: 14px; }
   button:active { background: var(--green); color: #000; }
   button.stop { color: var(--red); border-color: var(--red); }
+  /* omgevingsscan: rondje draaien */
+  #scanUi { position: absolute; left: 10px; right: 10px; top: 44px; background: rgba(0,0,0,.75); border: 1px solid var(--yellow); color: var(--yellow); padding: 8px; font-size: 13px; letter-spacing: .12em; text-align: center; }
+  #scanUi.ok { color: var(--green); border-color: var(--green); } #scanUi.err { color: var(--red); border-color: var(--red); }
+  #scan { color: var(--yellow); border-color: var(--yellow); }
 </style>
 </head>
 <body>
@@ -36,6 +40,7 @@
   <canvas id="ov"></canvas>
   <div id="tag">CAM_--</div>
   <div id="state" class="warn">OFFLINE</div>
+  <div id="scanUi" hidden></div>
 </div>
 <form id="f">
   <label>NAAM<input id="name" maxlength="16" value="" placeholder="JOUW NAAM" autocomplete="off"></label>
@@ -43,6 +48,7 @@
   <label>CAMERA<select id="facing"><option value="environment">ACHTER</option><option value="user">VOOR</option></select></label>
   <label>KWALITEIT<select id="q"><option value="480">480p</option><option value="720" selected>720p</option></select></label>
   <button id="go" type="submit">START CAMERA</button>
+  <button id="scan" type="button" hidden>SCAN OMGEVING</button>
 </form>
 <script>
 const $ = id => document.getElementById(id);
@@ -69,6 +75,7 @@ async function getCam() {
 
 function stop() {
   run++;
+  scanStop(false); $("scan").hidden = true; scanUi("");
   if (pc) pc.close(); pc = null; meta = null; marks = [];
   if (stream) stream.getTracks().forEach(t => t.stop()); stream = null;
   if (wake) wake.release().catch(() => {}); wake = null;
@@ -83,6 +90,7 @@ async function start() {
   store.set("cam.name", $("name").value); store.set("cam.code", $("code").value);
   store.set("cam.facing", $("facing").value); store.set("cam.q", $("q").value);
   $("tag").textContent = tagName();
+  compassAsk();                                   // nog binnen de klik: iPhone vraagt hier om de bewegingssensor
   $("go").textContent = "STOP"; $("go").classList.add("stop");
   try { stream = await getCam(); } catch (e) { state("CAMERA GEWEIGERD", "err"); return; }
   try { wake = await navigator.wakeLock.request("screen"); } catch {}   // scherm aan laten, anders stopt iOS de camera
@@ -95,7 +103,7 @@ async function start() {
     stream.getTracks().forEach(t => pc.addTrack(t, stream));
     meta = pc.createDataChannel("meta");
     meta.onopen = () => sendMeta();
-    meta.onmessage = m => { try { const d = JSON.parse(m.data); if (Array.isArray(d.overlay)) onOverlay(d); } catch {} };
+    meta.onmessage = m => { try { const d = JSON.parse(m.data); if (Array.isArray(d.overlay)) onOverlay(d); if (d.scan) onScanMsg(d.scan); } catch {} };
     // "disconnected" is vaak maar even (wifi hapert): 6 seconden de kans geven om zich te herstellen
     const myPc = pc;
     const done = new Promise(r => myPc.onconnectionstatechange = () => {
@@ -122,7 +130,7 @@ async function start() {
     if (!answer) { state("THE MACHINE REAGEERT NIET", "err"); pc.close(); await sleep(2000); continue; }
     await pc.setRemoteDescription({ type: "answer", sdp: answer.sdp });
     pc.onconnectionstatechange();
-    const live = setInterval(() => { if (pc?.connectionState === "connected") state("LIVE // CONNECTED", "ok live"); }, 500);
+    const live = setInterval(() => { if (pc?.connectionState === "connected") { state("LIVE // CONNECTED", "ok live"); $("scan").hidden = false; } }, 500);
     await done;
     clearInterval(live);
     if (my !== run) return;
@@ -261,6 +269,81 @@ $("facing").onchange = $("q").onchange = async () => {
   if (sender) await sender.replaceTrack(stream.getVideoTracks()[0]);
   sendMeta();
 };
+
+// OMGEVINGSSCAN: langzaam een rondje draaien. De bewegingssensor geeft de kijkrichting van de camera door;
+// The Machine pakt zelf elke 45 graden een beeld uit de video en laat gemma beschrijven wat er staat.
+let scanOn = false, scanLast = 0, scanSeen = 0;
+const scanUi = (t, c) => { const u = $("scanUi"); u.hidden = !t; u.textContent = t || ""; u.className = c || ""; };
+// kijkrichting van de camera in graden (rechtsom), uit alpha/beta/gamma; null als de telefoon plat ligt
+function camHeading(e) {
+  if (e.alpha == null || e.beta == null || e.gamma == null) return null;
+  const r = Math.PI / 180, a = e.alpha * r, b = e.beta * r, g = e.gamma * r;
+  // as door het scherm (z) in de wereld; de achtercamera kijkt de andere kant op
+  let x = Math.cos(a) * Math.sin(g) + Math.sin(a) * Math.sin(b) * Math.cos(g), y = Math.sin(a) * Math.sin(g) - Math.cos(a) * Math.sin(b) * Math.cos(g);
+  if ($("facing").value !== "user") { x = -x; y = -y; }
+  if (Math.hypot(x, y) < .2) return null;
+  return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
+}
+function onTurn(e) {
+  const h = camHeading(e); if (h == null) return;
+  scanSeen++;
+  const now = performance.now(); if (now - scanLast < 100) return; scanLast = now;
+  try { meta.send(JSON.stringify({ h: +h.toFixed(1) })); } catch {}
+}
+async function scanStart() {
+  if (!meta || meta.readyState !== "open") { scanUi("EERST VERBINDEN MET THE MACHINE", "err"); return; }
+  if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission) {   // iPhone: één keer toestemming
+    let ok = false; try { ok = await DeviceOrientationEvent.requestPermission() === "granted"; } catch {}
+    if (!ok) { scanUi("GEEN TOESTEMMING VOOR DE BEWEGINGSSENSOR", "err"); return; }
+  }
+  scanOn = true; scanSeen = 0; scanLast = 0;
+  meta.send(JSON.stringify({ scan: "start" }));
+  addEventListener("deviceorientation", onTurn);
+  $("scan").textContent = "STOP SCAN"; $("scan").classList.add("stop");
+  scanUi("BEGIN IN DE GEWONE KIJKRICHTING // DRAAI DAN LANGZAAM EEN RONDJE // 0/8", "warn");
+  setTimeout(() => { if (scanOn && !scanSeen) { scanStop(true); scanUi("GEEN BEWEGINGSSENSOR (OF TELEFOON PLAT) // HOUD HEM RECHTOP", "err"); } }, 3000);
+}
+function scanStop(send) {
+  if (!scanOn) return;
+  scanOn = false; removeEventListener("deviceorientation", onTurn);
+  if (send && meta && meta.readyState === "open") meta.send(JSON.stringify({ scan: "stop" }));
+  $("scan").textContent = "SCAN OMGEVING"; $("scan").classList.remove("stop");
+}
+// wat The Machine terugmeldt over de scan
+function onScanMsg(s) {
+  if (s.ask) { $("scan").hidden = false; scanUi("THE MACHINE VRAAGT EEN OMGEVINGSSCAN // DRUK OP SCAN OMGEVING", "warn"); return; }
+  if (s.busy) { scanStop(false); scanUi("THE MACHINE IS NOG BEZIG MET DE VORIGE SCAN", "warn"); return; }
+  if (s.total && s.got != null) scanUi(`DRAAI LANGZAAM ROND // ${s.got}/${s.total}`, "warn");
+  if (s.done) { scanStop(false); scanUi("RONDJE KLAAR // ZET DE TELEFOON TERUG // AI KIJKT MEE", "ok"); }
+  if (s.looking) scanUi(`AI BEKIJKT BEELD ${s.looking}/${s.total}`, "ok");
+  if (s.analysed) { scanUi(`SCAN KLAAR // ${s.analysed} KANTEN OP DE KAART`, "ok"); setTimeout(() => { if (!scanOn) scanUi(""); }, 6000); }
+  if (s.cancelled) { scanStop(false); scanUi("SCAN AFGEBROKEN (TE WEINIG BEELDEN)", "warn"); setTimeout(() => { if (!scanOn) scanUi(""); }, 5000); }
+  if (s.failed) { scanStop(false); scanUi("SCAN MISLUKT // GEEN AI MET BEELD", "err"); setTimeout(() => { if (!scanOn) scanUi(""); }, 5000); }
+}
+$("scan").onclick = () => scanOn ? scanStop(true) : scanStart();
+
+// KOMPAS: kijkrichting van de camera t.o.v. het noorden, elke 2 s naar The Machine. Twee telefoons staan dan op de kaart
+// vanzelf goed gedraaid t.o.v. elkaar. Android: alpha t.o.v. het noorden; iPhone: webkitCompassHeading (= kant van de achtercamera).
+let compassH = null, compassOff = null, compassOn = false;
+function onCompassAbs(e) { const h = camHeading(e); if (h != null) compassH = h; }
+function onCompassIos(e) {
+  if (typeof e.webkitCompassHeading !== "number") return;
+  const h = camHeading(e); if (h == null) return;
+  const rear = $("facing").value === "user" ? h + 180 : h;
+  if (Math.abs(e.beta) > 50) compassOff = e.webkitCompassHeading - rear;   // rechtop gehouden: dan klopt het kompas het best
+  if (compassOff != null) compassH = ((h + compassOff) % 360 + 360) % 360;
+}
+function compassListen() {
+  if (compassOn) return; compassOn = true;
+  if ("ondeviceorientationabsolute" in window) addEventListener("deviceorientationabsolute", onCompassAbs);
+  else addEventListener("deviceorientation", onCompassIos);
+}
+function compassAsk() {
+  if (typeof DeviceOrientationEvent !== "undefined" && DeviceOrientationEvent.requestPermission)
+    DeviceOrientationEvent.requestPermission().then(r => { if (r === "granted") compassListen(); }).catch(() => {});
+  else compassListen();
+}
+setInterval(() => { if (compassH != null && meta && meta.readyState === "open") try { meta.send(JSON.stringify({ compass: +compassH.toFixed(1) })); } catch {} }, 2000);
 
 $("f").onsubmit = e => { e.preventDefault(); if (stream) stop(); else start(); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && stream && !wake) navigator.wakeLock?.request("screen").then(w => wake = w).catch(() => {}); });
