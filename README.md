@@ -10,6 +10,11 @@
 ![AI](https://img.shields.io/badge/AI-Ollama%20gemma3%3A12b-black)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Runs](https://img.shields.io/badge/runs-100%25%20local-33ff66)
+![Stars](https://img.shields.io/github/stars/Debeste12/the-machine?style=social)
+
+<img src="GIT-Picture/terminal.png" alt="The Machine recognizing its ADMIN in real time" width="800">
+
+**[Quick start](#quick-start)** · **[Screenshots](#screenshots)** · **[Features](#features)** · **[The console](#the-console)**
 
 </div>
 
@@ -18,6 +23,46 @@
 ## What is it?
 
 The Machine is a surveillance-style terminal that runs entirely on your own PC, in the browser. It watches your own cameras, recognizes faces and voices, assigns them the familiar roles from the show (ADMIN, ASSET, THREAT and so on) and talks back through a local language model. Nothing leaves your computer.
+
+> **Why it's different:** no cloud, no account, no API keys. Face recognition, speech, object detection and the AI all run on your own hardware.
+
+## Quick start
+
+```
+git clone https://github.com/Debeste12/the-machine.git
+```
+
+Double-click **`start.bat`**, sit in front of your webcam and type `/admin`. That's it. The first start downloads Ollama, `gemma3:12b` and whisper.cpp for you (see [Installation](#installation)).
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Subject file](GIT-Picture/dossier-asset.png) | ![Defense mode](GIT-Picture/defense.png) |
+| **Subject file** (`/dossier`) with age, sightings, emotion and notes | **Defense mode**: an unknown face trying `/admin` becomes THREAT TO SYSTEM |
+| ![Console map](GIT-Picture/console-map.png) | ![Console network](GIT-Picture/console-network.png) |
+| **Console map** after AUTO LAYOUT: rooms named by gemma3 | **Network**: who knows who |
+| ![Subjects](GIT-Picture/console-subjects.png) | ![Timeline](GIT-Picture/console-timeline.png) |
+| **Console subjects**: every known person and their role | **Timeline**: who was at which camera and when |
+
+<details>
+<summary><b>More screenshots</b></summary>
+
+| | |
+|---|---|
+| ![Feeds](GIT-Picture/console-feeds.png) | ![Cases](GIT-Picture/console-cases.png) |
+| **Feeds**: all cameras at once | **Cases**: threats become numbered cases |
+| ![Admin file](GIT-Picture/dossier.png) | ![Chat](GIT-Picture/chat.png) |
+| **ADMIN file** with a note | **Chat** with The Machine through gemma3 |
+| ![Startup](GIT-Picture/startup.png) | ![Access denied](GIT-Picture/access-denied.png) |
+| **System startup** | **Access denied** without clearance |
+
+</details>
+
+> **About these screenshots:** they were made by an AI assistant that ran The Machine in a separate test browser, with two free stock videos from Pexels as camera input instead of a real webcam:
+> [A Man Walking While Looking at Camera](https://www.pexels.com/video/a-man-walking-while-looking-at-camera-6153696/) (cottonbro studio) and
+> [A Man Walking Towards the Camera](https://www.pexels.com/video/a-man-walking-towards-the-camera-5320110/).
+> Everything you see (recognition, files, map, cases) was really produced by The Machine, but the people are stock footage actors and the names and notes are made up. No one's private data is shown.
 
 ## Features
 
@@ -146,6 +191,12 @@ ontwerpen/          design sketches
 - Face and voice profiles, dossiers and settings are stored in your browser (localStorage), not in this repository.
 - The pairing code, certificates, signalling files and logs are excluded through `.gitignore`.
 - Only use it on people who know about it and agree.
+
+## Contributing
+
+Contributions are welcome. Open an [issue](https://github.com/Debeste12/the-machine/issues) with a bug or idea, or send a pull request.
+
+If you like the project, a ⭐ helps other fans of the show find it.
 
 ## License
 
