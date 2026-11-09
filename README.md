@@ -37,7 +37,7 @@ The Machine is a surveillance-style terminal that runs entirely on your own PC, 
 ## Requirements
 
 - Windows 10 or 11
-- Chrome or Edge
+- Chrome, Edge or Firefox
 - A webcam
 - About 10 GB of free disk space and an internet connection for the first start
 - Optional: an NVIDIA GPU for fast speech recognition with whisper
