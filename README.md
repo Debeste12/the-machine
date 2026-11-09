@@ -30,6 +30,7 @@ The Machine is a surveillance-style terminal that runs entirely on your own PC, 
 | **Multi-camera** | Use phones as extra cameras over HTTPS (local network or via a Cloudflare tunnel) |
 | **Local AI** | Chat with The Machine through Ollama (`gemma3:12b`), which can also look at the camera image |
 | **Dossiers & memory** | Subject files with notes per person; say "remember ..." in the chat to store something |
+| **Console** | Second screen (F2) with feeds, subjects, timeline, network, cases, log and a floor plan with AUTO LAYOUT |
 | **Modes** | Monitoring, surveillance (visitor log), defense, standby and debug |
 | **Clearance levels** | Commands are only allowed for the role of the face in front of the desk camera |
 | **Two languages** | English and Dutch (`/lang en` or `/lang nl`) |
@@ -80,10 +81,43 @@ The first start takes a while because of these downloads. After that, each start
 | `/cams` | Show camera feeds and how to add a phone |
 | `/mode [name]` | Switch between monitoring, surveillance, defense, standby and debug |
 | `/voiceprint [name]` | Record a voiceprint |
+| `/console [page]` | Open the console (F2), see below |
+| `/review` | Check recent recognitions and correct them (ADMIN only) |
 | `/systemcheck` | Check AI, voice, cameras, models, server and tunnel |
 | `/reboot` / `/exit` | Restart or shut down everything |
 
 Voice input: press the **MIC** button or **Ctrl+Space**.
+
+## The console
+
+Press **F2** (or type `/console`) to open the console: a second screen with an overview of everything The Machine has seen. Press F2 or Esc to close it again. Inside the console, `/help` shows the console commands.
+
+The console has seven pages. Switch with the keys **1-7** or with `/console <page>`:
+
+| Page | What you see |
+|---|---|
+| **1 FEEDS** | All camera feeds; click one to make it the main view |
+| **2 SUBJECTS** | Everyone The Machine knows, with their role; FILE opens the subject file |
+| **3 TIMELINE** | Who was at which camera and when; RANGE and GROUP buttons on top |
+| **4 NETWORK** | Who knows who and who was seen together; click a person to see their connections |
+| **5 CASES** | Threats and weapons as numbered cases, OPEN or ALL |
+| **6 LOG** | Visitor log from surveillance mode |
+| **7 MAP** | Floor plan with your cameras, who is where and walking routes |
+
+Console commands:
+
+| Command | What it does |
+|---|---|
+| `/case <nr> [close\|open\|note] [text]` | Show, close, reopen or add a note to a case |
+| `/link <a> + <b> [relation]` | Store a relation between two people; `/link <name>` shows connections |
+| `/unlink <a> + <b>` | Remove a stored relation |
+| `/follow [me\|name\|off]` | The main view follows a person from camera to camera |
+| `/cams [nr]` | Make a camera the main view |
+| `/dossier`, `/note` | Open a subject file or add a note |
+
+**Map editing (ADMIN only):** on the MAP page, EDIT lets you drag and rotate cameras. **AUTO LAYOUT** lets gemma3 look at each camera, name the room (KITCHEN, HALLWAY ...) and place the cameras using the walking routes from the timeline. UNDO AUTO restores the previous map and CLEAR ROOMS removes the room boxes.
+
+The console only shows what your role is allowed to see (ADMIN, ANALOG INTERFACE and ASSET can open it).
 
 ## Adding a phone as a camera
 
