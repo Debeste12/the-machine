@@ -108,6 +108,51 @@ The first start takes a while because of these downloads. After that, each start
 
 `start.bat` starts everything in its own minimized window: the web server, the camera server, the Cloudflare tunnel (`cloudflared.exe` is downloaded automatically the first time), Ollama and whisper. Then it opens The Machine in your browser.
 
+## Using your GPU
+
+The Machine runs a lot of AI at the same time, so a GPU makes a big difference. Three parts can use it:
+
+| Part | Runs on | How |
+|---|---|---|
+| Face recognition (face-api) | GPU through the browser | WebGL |
+| Language model (Ollama, `gemma3:12b`) | GPU through Ollama | outside the browser |
+| Speech input (whisper.cpp) | GPU with an NVIDIA card | CUDA build, chosen by `setup.ps1` |
+
+Person tracking (YOLOX), the weapon net and voice ID run on the CPU (ONNX Runtime with WebAssembly), whatever your settings are.
+
+**Check first.** After the boot screen, look at **AI BACKEND** at the top. `GPU // RTX 3080` (or the name of your card) means face recognition runs on the GPU. `CPU // ...` or `CPU // SOFTWARE` means the browser is not using your GPU. Yellow means it runs on a weak GPU, such as built-in Intel graphics.
+
+### 1. Turn on hardware acceleration in the browser
+
+- **Chrome:** go to `chrome://settings/system` and turn on **Use graphics acceleration when available**. Click **Relaunch**.
+- **Edge:** go to `edge://settings/system` and turn on **Use graphics acceleration when available**. Restart Edge.
+- **Firefox:** go to **Settings > General > Performance**, uncheck **Use recommended performance settings** and check **Use hardware acceleration when available**. Restart Firefox.
+
+### 2. Check that the browser sees your GPU
+
+Open `chrome://gpu` (Chrome) or `edge://gpu` (Edge). Under **Graphics Feature Status**, **WebGL** should say **Hardware accelerated**. If it says *Software only* or *Disabled*, update your graphics driver (NVIDIA, AMD or Intel website) and restart the browser. In Firefox, open `about:support` and look at **Graphics > Compositing** and **WebGL 1 Driver Renderer**.
+
+### 3. Pick the fast GPU in Windows (laptops with two GPUs)
+
+Many laptops have a built-in Intel or AMD GPU next to a fast NVIDIA or AMD card, and Windows often gives the browser the slow one.
+
+1. Open **Settings > System > Display > Graphics**.
+2. Find your browser in the list (or add it with **Browse**, for example `C:\Program Files\Google\Chrome\Application\chrome.exe`).
+3. Click it, choose **Options** (Windows 10) or the dropdown (Windows 11), and select **High performance**.
+4. Close the browser completely and start The Machine again.
+
+On NVIDIA cards you can also do this in the **NVIDIA Control Panel > Manage 3D settings > Program Settings**: pick your browser and set **High-performance NVIDIA processor**.
+
+### 4. Check Ollama
+
+Ollama uses your NVIDIA or AMD GPU by itself, as long as your graphics driver is up to date. To check, open a command prompt while The Machine is running and type:
+
+```
+ollama ps
+```
+
+The **PROCESSOR** column should say `100% GPU`. If it says something like `40%/60% CPU/GPU`, the model does not fit in your video memory. `gemma3:12b` needs about 8 GB or more; with less VRAM it still works, but answers are slower.
+
 ## First steps
 
 1. Sit alone in front of the camera and type `/admin` to register your face as ADMIN.
