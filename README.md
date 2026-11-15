@@ -108,7 +108,7 @@ The first start takes a while because of these downloads. After that, each start
 
 `start.bat` starts everything in its own minimized window: the web server, the camera server, the Cloudflare tunnel (`cloudflared.exe` is downloaded automatically the first time), Ollama and whisper. Then it opens The Machine in your browser.
 
-## Using your GPU
+## Using your GPU (optional)
 
 The Machine runs a lot of AI at the same time, so a GPU makes a big difference. Three parts can use it:
 
