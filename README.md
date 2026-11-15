@@ -182,7 +182,6 @@ ollama.ps1          starts Ollama
 weapon-worker.js    weapon detection in a background worker
 lib/                face-api.js and ONNX Runtime
 models/             face, voice, person and weapon models
-ontwerpen/          design sketches
 ```
 
 ## Privacy
