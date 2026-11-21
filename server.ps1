@@ -3,6 +3,9 @@
 # -NoBrowser: geen nieuw browsertabblad (bij /reboot laadt de open pagina zichzelf opnieuw).
 param([switch]$NoBrowser)
 $port = 8080
+$dataDir = Join-Path $PSScriptRoot "data"          # geheugenkern op schijf: state.json + snapshots\
+$snapDir = Join-Path $dataDir "snapshots"
+New-Item -ItemType Directory -Force $snapDir | Out-Null
 $root = $PSScriptRoot
 . (Join-Path $root "signal.ps1")
 $mime = @{
@@ -118,6 +121,62 @@ while ($listener.IsListening) {
     $res.StatusCode = if (-not $ok) { 403 } elseif (Send-MachineKeys @(0x7A)) { 200 } else { 409 }
     $res.Close(); continue
   }
+  # geheugenkern: de pagina bewaart haar geheugen ook op schijf (data\state.json) en maakt momentopnamen (data\snapshots)
+  if ($path -like "data/*") {
+    $origin = $req.Headers["Origin"]
+    $status = 200; $out = ""
+    try {
+      if ($req.Headers["X-Machine"] -ne "1" -or ($origin -and $origin -ne "http://localhost:$port")) { $status = 403; $out = '{"error":"header"}' }
+      else {
+        $stateFile = Join-Path $dataDir "state.json"
+        $name = [string]$req.QueryString["name"]
+        $snapFile = if ($name -match '^[A-Za-z0-9_-]{1,40}$') { Join-Path $snapDir "$name.json" } else { $null }
+        $utf8 = New-Object Text.UTF8Encoding($false)
+        if ($path -eq "data/state" -and $req.HttpMethod -eq "GET") {
+          if (Test-Path $stateFile) { $out = [IO.File]::ReadAllText($stateFile, $utf8) } else { $status = 204 }
+        } elseif ($path -eq "data/state" -and $req.HttpMethod -eq "POST") {
+          $text = (New-Object IO.StreamReader($req.InputStream, [Text.Encoding]::UTF8)).ReadToEnd()
+          if ($text.Length -lt 2 -or $text[0] -ne "{" -or $text -notlike '*"format":"the-machine-memory"*') { $status = 400; $out = '{"error":"not a memory file"}' }
+          else {
+            # eerst naar een tijdelijk bestand, dan wisselen: een stroomstoring halverwege laat de oude kopie heel
+            [IO.File]::WriteAllText("$stateFile.tmp", $text, $utf8)
+            # Let op: vroeger stond hier [IO.File]::Replace(..., $null). PowerShell maakt van $null dan een lege tekst ("") en dat
+            # geeft een fout, waardoor alleen de allereerste keer opslaan lukte (MEMORY CORE // DISK COPY UNAVAILABLE).
+            # Nu met [NullString]::Value, en lukt wisselen toch niet (bijv. bestand even vast door virusscanner), dan gewoon overschrijven.
+            if (Test-Path $stateFile) {
+              try { [IO.File]::Replace("$stateFile.tmp", $stateFile, [NullString]::Value) }
+              catch { [IO.File]::Copy("$stateFile.tmp", $stateFile, $true); [IO.File]::Delete("$stateFile.tmp") }
+            } else { [IO.File]::Move("$stateFile.tmp", $stateFile) }
+            $out = '{"ok":true,"bytes":' + $utf8.GetByteCount($text) + '}'
+          }
+        } elseif ($path -eq "data/snapshots" -and $req.HttpMethod -eq "GET") {
+          $epoch = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
+          $items = @(Get-ChildItem $snapDir -Filter *.json | Sort-Object Name -Descending | ForEach-Object {
+            '{"name":"' + $_.BaseName + '","bytes":' + $_.Length + ',"ts":' + [long]($_.LastWriteTimeUtc - $epoch).TotalMilliseconds + '}' })
+          $out = "[" + ($items -join ",") + "]"
+        } elseif ($path -eq "data/snapshot") {
+          if (-not $snapFile) { $status = 400; $out = '{"error":"bad name"}' }
+          elseif ($req.HttpMethod -eq "POST") {
+            if (Test-Path $stateFile) { Copy-Item $stateFile $snapFile -Force; $out = '{"ok":true,"name":"' + $name + '","bytes":' + (Get-Item $snapFile).Length + '}' }
+            else { $status = 409; $out = '{"error":"no state"}' }
+          } elseif ($req.HttpMethod -eq "GET") {
+            if (Test-Path $snapFile) { $out = [IO.File]::ReadAllText($snapFile, $utf8) } else { $status = 404; $out = '{"error":"not found"}' }
+          } elseif ($req.HttpMethod -eq "DELETE") {
+            if (Test-Path $snapFile) { Remove-Item $snapFile -Force }
+            $out = '{"ok":true}'
+          } else { $status = 404; $out = "{}" }
+        } else { $status = 404; $out = "{}" }
+      }
+    } catch { $status = 500; $out = '{"error":"server"}' }
+    try {
+      $bytes = [Text.Encoding]::UTF8.GetBytes($out)
+      $res.StatusCode = $status; $res.ContentType = "application/json; charset=utf-8"
+      $res.Headers["Cache-Control"] = "no-store"
+      $res.ContentLength64 = $bytes.Length
+      if ($bytes.Length) { $res.OutputStream.Write($bytes, 0, $bytes.Length) }
+    } catch {}
+    $res.Close(); continue
+  }
   try {
     $body = ""
     if ($req.HasEntityBody) { $body = (New-Object IO.StreamReader($req.InputStream, [Text.Encoding]::UTF8)).ReadToEnd() }
@@ -131,7 +190,8 @@ while ($listener.IsListening) {
     }
   } catch { $res.StatusCode = 500; $res.Close(); continue }
   $file = [IO.Path]::GetFullPath((Join-Path $root $path))
-  if ($file.StartsWith($root) -and (Test-Path $file -PathType Leaf)) {
+  # de map data\ (geheugen op schijf) is nooit als gewoon bestand op te vragen
+  if ($file.StartsWith($root) -and -not $file.StartsWith($dataDir) -and (Test-Path $file -PathType Leaf)) {
     $bytes = [IO.File]::ReadAllBytes($file)
     $ext = [IO.Path]::GetExtension($file).ToLower()
     $res.ContentType = if ($mime.ContainsKey($ext)) { $mime[$ext] } else { "application/octet-stream" }

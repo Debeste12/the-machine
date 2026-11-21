@@ -211,8 +211,8 @@
   #console.on { display: flex; animation: dIn .3s ease-out; }
   #console .chead { display: flex; align-items: center; gap: 14px; background: var(--white); color: #000; padding: 3px 10px; font-size: 14px; letter-spacing: .12em; }
   #console .chead .t { white-space: nowrap; }
-  #console .chead nav { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
-  #console .chead nav button, #console .chead .x { border: none; color: #000; padding: 1px 8px; font-size: 13px; letter-spacing: .14em; }
+  #console .chead nav { display: flex; gap: 1px; flex: 1; flex-wrap: nowrap; overflow: hidden; }
+  #console .chead nav button, #console .chead .x { border: none; color: #000; padding: 1px 6px; font-size: 13px; letter-spacing: .08em; white-space: nowrap; }
   #console .chead nav button.on { background: #000; color: var(--white); }
   #console .chead nav button:hover, #console .chead .x:hover { background: #333; color: var(--white); }
   #console .chead .clk { color: #444; font-size: 12px; white-space: nowrap; }
@@ -336,6 +336,7 @@
     #sim { width: 240px; transform: scale(.9); transform-origin: top left; }
   }
 </style>
+<link rel="stylesheet" href="ui/core.css">
 </head>
 <body>
 
@@ -382,6 +383,9 @@
       </div>
     </div>
 
+    <div id="afeed"></div>
+    <div id="numCard"></div>
+
     <div id="dossier"></div>
     <div id="review"></div>
     <div id="cams"></div>
@@ -423,6 +427,16 @@
 
 <script src="lib/face-api.js"></script>
 <script src="lib/ort/ort.wasm.min.js"></script>
+<!-- THE MACHINE // CORE: rekenlogica zonder scherm (ook los te testen, zie tests/) -->
+<script src="core/util.js"></script>
+<script src="core/events.js"></script>
+<script src="core/patterns.js"></script>
+<script src="core/threat.js"></script>
+<script src="core/numbers.js"></script>
+<script src="core/graph.js"></script>
+<script src="core/query.js"></script>
+<script src="core/retention.js"></script>
+<script src="core/assist.js"></script>
 <script>
 /* =================== settings =================== */
 const OLLAMA = "http://localhost:11434";
@@ -486,7 +500,7 @@ const SAMPLES = 6;                    // aantal opnames per gezicht bij registre
 const T = {
   en: {
     placeholder: "type a message or /help",
-    intro: "THE MACHINE v2.0 // runs locally, nothing leaves this computer.",
+    intro: "THE MACHINE v2.5 // runs locally, nothing leaves this computer.",
     introHelp: "Type /help for commands.",
     noAI: "No local AI found. Install Ollama and run:  ollama pull gemma3:12b",
     noAI2: "Then type /connect.",
@@ -586,6 +600,19 @@ const T = {
       "                    (shortcut: /mode m, s, d, t, b)",
       "/log * [clear]      visitor log from surveillance mode",
       "/console *          open the console (F2); type /help there for the console commands",
+      "/overview *         OVERVIEW: threat level, numbers, cases, who is where (console page 1)",
+      "/numbers *          NUMBERS: who is in danger or dangerous (RELEVANT / IRRELEVANT list)",
+      "/number * <nr> [close [reason]]  show or close a number",
+      "/threat * [name|#]  threat assessment of a subject, with the reasons",
+      "/briefing *         situation report: threat level, numbers, cases, who was seen",
+      "/watch * <name>     watchlist: alert as soon as that subject comes into view",
+      "                    /watch <name> off = remove, /watch clear = empty the list, /watch = show the list",
+      "/recap * [hours]    what happened while you were away (also shown when you return)",
+      "/expect *           who is expected this hour, from the patterns of life",
+      "/memory *           memory core: what is stored in the browser and on disk",
+      "/backup *           write a snapshot to disk now (data\\snapshots)",
+      "/restore * [date]   load a snapshot from disk (/restore alone = list)",
+      "/export *           save everything to one file; /import * loads such a file",
       "/autodefense * [on|off] turn automatic DEFENSE mode on or off",
       "/style *            switch box style (series / classic)",
       "/lang * en|nl       switch language",
@@ -603,9 +630,13 @@ const T = {
     ].join("\n"),
     helpConsole: [
       "CONSOLE COMMANDS (F2 or Esc closes the console, then /help shows the camera commands again)",
-      "/console * [page]   go to a page: feeds, subjects, timeline, network, cases, log, map",
+      "/console * [page]   go to a page: overview, feeds, subjects, numbers, timeline, network, cases, log, map",
       "                    /console alone = close the console",
-      "                    keys 1-7 = FEEDS, SUBJECTS, TIMELINE, NETWORK, CASES, LOG, MAP (not while typing)",
+      "                    keys 1-9 = OVERVIEW, FEEDS, SUBJECTS, NUMBERS, TIMELINE, NETWORK, CASES, LOG, MAP (not while typing)",
+      "/overview *         OVERVIEW: threat level over 24 h, numbers, cases, who is where, latest events",
+      "/numbers *          NUMBERS: active and resolved numbers; /number <nr> [close [reason]]",
+      "/threat * [name|#]  threat assessment of a subject, with the reasons",
+      "/briefing *         situation report",
       "/timeline *         TIMELINE: who was at which camera; RANGE and GROUP buttons on top",
       "/network *          NETWORK: who knows who / seen together; click a person = connections",
       "/map *              MAP: floor plan, who is where, walking routes; EDIT and AUTO LAYOUT for ADMIN",
@@ -648,7 +679,7 @@ const T = {
   },
   nl: {
     placeholder: "typ een bericht of /help",
-    intro: "THE MACHINE v2.0 // draait lokaal, niets verlaat deze pc.",
+    intro: "THE MACHINE v2.5 // draait lokaal, niets verlaat deze pc.",
     introHelp: "Typ /help voor commando's.",
     noAI: "Geen lokale AI gevonden. Installeer Ollama en voer uit:  ollama pull gemma3:12b",
     noAI2: "Typ daarna /connect.",
@@ -748,6 +779,19 @@ const T = {
       "                    (sneltoets: /mode m, s, d, t, b)",
       "/log * [clear]      bezoekerslog van surveillance-modus",
       "/console *          open de console (F2); typ daar /help voor de console-commando's",
+      "/overview *         OVERVIEW: dreigingsniveau, nummers, zaken, wie is waar (console-pagina 1)",
+      "/numbers *          NUMBERS: wie loopt gevaar of is gevaarlijk (RELEVANT / IRRELEVANT-lijst)",
+      "/number * <nr> [close [reden]]  een nummer tonen of sluiten",
+      "/threat * [naam|#]  dreigingsanalyse van een subject, met de redenen",
+      "/briefing *         situatierapport: dreigingsniveau, nummers, zaken, wie er is gezien",
+      "/watch * <naam>     volglijst: melding zodra dat subject in beeld komt",
+      "                    /watch <naam> off = verwijderen, /watch clear = lijst leegmaken, /watch = lijst tonen",
+      "/recap * [uren]     wat er gebeurd is terwijl je weg was (verschijnt ook als je terugkomt)",
+      "/expect *           wie er dit uur verwacht wordt, uit de leefpatronen",
+      "/memory *           memory core: wat er in de browser en op schijf staat",
+      "/backup *           nu een snapshot naar schijf schrijven (data\\snapshots)",
+      "/restore * [datum]  een snapshot van schijf laden (/restore alleen = lijst)",
+      "/export *           alles in één bestand opslaan; /import * laadt zo'n bestand",
       "/autodefense * [on|off] automatische DEFENSE-modus aan of uit",
       "/style *            wissel kaderstijl (series / classic)",
       "/lang * en|nl       wissel taal",
@@ -765,9 +809,13 @@ const T = {
     ].join("\n"),
     helpConsole: [
       "CONSOLE-COMMANDO'S (F2 of Esc sluit de console, daarna toont /help weer de camera-commando's)",
-      "/console * [pagina] naar een pagina: feeds, subjects, timeline, network, cases, log, map",
+      "/console * [pagina] naar een pagina: overview, feeds, subjects, numbers, timeline, network, cases, log, map",
       "                    /console alleen = console sluiten",
-      "                    toetsen 1-7 = FEEDS, SUBJECTS, TIMELINE, NETWORK, CASES, LOG, MAP (niet tijdens typen)",
+      "                    toetsen 1-9 = OVERVIEW, FEEDS, SUBJECTS, NUMBERS, TIMELINE, NETWORK, CASES, LOG, MAP (niet tijdens typen)",
+      "/overview *         OVERVIEW: dreigingsniveau over 24 uur, nummers, zaken, wie is waar, laatste gebeurtenissen",
+      "/numbers *          NUMBERS: actieve en opgeloste nummers; /number <nr> [close [reden]]",
+      "/threat * [naam|#]  dreigingsanalyse van een subject, met de redenen",
+      "/briefing *         situatierapport",
       "/timeline *         TIMELINE: wie stond wanneer bij welke camera; RANGE- en GROUP-knoppen bovenaan",
       "/network *          NETWORK: wie kent wie / samen gezien; klik een persoon = connecties",
       "/map *              MAP: plattegrond, wie is waar, looproutes; EDIT en AUTO LAYOUT voor ADMIN",
@@ -816,9 +864,20 @@ const video = $("video"), canvas = $("overlay");
 let ctx = canvas.getContext("2d");         // de kaderfuncties tekenen hierop; drawSide zet hem even op het canvas van een tegel
 let textMirror = true;                     // staat het canvas gespiegeld? dan tekst terugspiegelen
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Haakjes naar THE MACHINE // CORE (ui/*.js): de denklaag bovenop de waarneming. Ontbreekt die laag of gaat daar
+// iets mis, dan draait de rest van The Machine gewoon door.
+function HOOK(name, ...a) {
+  const h = window.MachineUI && window.MachineUI[name];
+  if (!h) return undefined;
+  try { return h(...a); } catch (e) { console.error("CORE // " + name, e); return undefined; }
+}
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  // false = niet opgeslagen (opslag vol); de CORE-laag meldt dat één keer
+  set(k, v) {
+    if (window.MachineUI && MachineUI.storeFrozen) return true;   // /restore of /import zet net alles terug: niets meer wegschrijven
+    let ok = true; try { localStorage.setItem(k, JSON.stringify(v)); } catch { ok = false; } HOOK("stored", k, ok); return ok; },
+  del(k) { if (window.MachineUI && MachineUI.storeFrozen) return; try { localStorage.removeItem(k); } catch {} HOOK("stored", k, true); },
 };
 
 let lang = store.get(STORE.lang, "en");
@@ -1111,6 +1170,7 @@ async function startTerminal() {
   const admins = people.filter(p => p.type === "ADMIN").length;
   if (admins > 1) print(L().adminMulti(admins), "err");
   hudMessage("SEARCHING");
+  HOOK("online");
 }
 
 /* =================== camera's =================== */
@@ -1147,6 +1207,7 @@ function addFeed(f) {
   document.body.classList.toggle("multicam", feeds.length > 1);
   if (!mainFeed) selectFeed(f, true);
   layoutCams();
+  HOOK("feedOn", f);
   return f;
 }
 
@@ -1160,6 +1221,7 @@ function removeFeed(f) {
   layoutCams();
   if (terminalReady) print(`${f.tag} // SIGNAL LOST`, "warn");
   hudMessage(`${f.tag} OFFLINE`, "var(--yellow)", 2500);
+  HOOK("feedOff", f);
 }
 
 function selectFeed(f, silent = false) {
@@ -1501,6 +1563,7 @@ function linkSubjects(list, f) {
     if (o.type) s.type = o.type;
     mapMemSee(s, o, f, now);                                       // MAP-geheugen: waar in beeld
     touchSubject(s, f, now);
+    if (!s.person) HOOK("unknown", s, f, now);                     // onbekenden op de tijdlijn + rondhangen
     if (s === followSubj) followQuality(s, o, f, now);            // /follow: beter beeld op een andere camera?
     // overgedragen onbekende: nummer ook op de tegel laten zien
     if (!o.person && "label" in o) { const tag = subjTag(o); o.label = tag ? subjName(s) : null; o.name = o.label; }
@@ -1524,6 +1587,7 @@ function handoff(s, from, to, gone) {
   s.trail = [...(s.trail || []), { from: from.tag, to: to.tag, at: now }].slice(-10);
   mapMemHandoff(s, from, to, gone);                                 // MAP-geheugen: uit/in beeld onthouden
   debugLog(`HANDOFF ${name} ${from.tag} > ${to.tag} ${Math.round(gone / 1000)}s`);
+  HOOK("handoff", s, name, from.tag, to.tag, gone);
   if (terminalReady) print(`SUBJECT HANDOFF // ${name} // ${from.tag} > ${to.tag} (${Math.round(gone / 1000)}S)`, danger ? "err" : "sys");
   if (surveilling()) addLog({ ts: now, at: stamp(now), kind: "scan", text: `HANDOFF // ${name} // ${from.tag} > ${to.tag}` });
   if (s === followSubj && to !== mainFeed) setTimeout(() => followTo(s), 0);   // niet midden in een scan van camera wisselen
@@ -2036,6 +2100,7 @@ function setThreat(b, why) {
   hudMessage(`THREAT ${why}`, "var(--red)");
   if (terminalReady) print(`THREAT ${why}`, "err");
   debugLog(`BODY #${b.id} THREAT`);
+  HOOK("threatSeen", why, faceOfBody(b));
   storeThreat(faceOfBody(b));
 }
 // meteen bij THREAT opslaan als IRRELEVANT THREAT (zonder gezicht in beeld: zodra het gezicht er is, zie applyWeaponAlerts)
@@ -2065,6 +2130,7 @@ function storeThreat(t, force = false) {
   t.name = t.person.name;
   hudMessage(`THREAT STORED // ${t.person.name.toUpperCase()}`, "var(--red)");
   if (terminalReady) print(`THREAT IDENTIFIED // SUBJECT ${t.person.name.toUpperCase()} STORED AS IRRELEVANT THREAT`, "err");
+  HOOK("profile", "STORED AS THREAT", t.person);
 }
 // wapen weg: POTENTIAL vervalt gewoon; een THREAT wordt IRRELEVANT THREAT en komt bij people
 // het gezicht bij dit lichaam: nu gekoppeld, eerder tijdens het alarm gekoppeld, of een gezicht dat in het lichaam valt
@@ -2113,6 +2179,7 @@ function logWeapon(t, level, b) {
   if (!e) { e = { ts: Date.now(), label: weaponLabel(b), score: w ? +w.score.toFixed(2) : null, level }; m.weapons.push(e); m.weapons = m.weapons.slice(-WEAPON_LOG_KEEP); t.weaponLog = { key, e }; }
   else { e.level = level; e.label = weaponLabel(b); if (w && w.score > (e.score || 0)) e.score = +w.score.toFixed(2); }
   caseEvent(level === "THREAT" ? "THREAT" : "WEAPON", t.person.id, `${level === "THREAT" ? "WEAPON CONFIRMED" : "WEAPON DETECTED"} // ${e.label}${e.score ? " " + Math.round(e.score * 100) + "%" : ""}`);
+  HOOK("weapon", t.person, e, level);
   saveMemory();
   if (dossierOf === t.person) renderDossier();
 }
@@ -2327,8 +2394,12 @@ function updateSim(main) {
               : Math.min(.2, count("IRRELEVANT") * .05);
   // DEFENSE: met een threat in beeld minimaal HIGH, zonder threat MEDIUM
   if (mode === "DEFENSE") level = sys + threats + pots + ithreats ? Math.max(level, .6) : Math.max(level, .35);
+  // THE MACHINE // CORE: de dreigingsanalyse, actieve nummers en lopende cases tellen mee, ook als de tags in beeld dat niet zeggen
+  const amb = HOOK("ambient");
+  if (amb && amb.value > level) level = amb.value;
   const tl = sys ? "CRITICAL" : level > .5 ? "HIGH" : level > .2 ? "MEDIUM" : "LOW";
   threatLevel = tl;
+  HOOK("level", level, tl);
 
   // de twee belangrijkste tags in beeld bepalen de doelen; een lege plek volgt het dreigingsniveau
   const fill = { CRITICAL: ["SYSTEM COMPROMISED", "bg-red"], HIGH: ["THREAT DETECTED // LEVEL HIGH", "bg-red"],
@@ -2439,6 +2510,13 @@ function draw() {
       mirroredText(`#${f.num}`, d.cx - s / 2 + s * 0.11, d.cy - s / 2 + s * 0.1 + fs * 0.35, `${fs}px VT323, Consolas, monospace`, TYPES[f.type].color);
       ctx.globalAlpha = 1;
     }
+    const info = !f.ghost && f.person ? HOOK("boxInfo", f.person) : null;   // dreigingsanalyse onder het kader: "THREAT 72% // NUMBER"
+    if (info) {
+      const lf = Math.max(18, Math.min(34, s * 0.12)), fs = Math.max(13, lf * .55);
+      ctx.globalAlpha = k * fade;
+      mirroredText(info.text, d.cx, boxStyle === "series" ? d.cy + s / 2 + lf * (shownName(f) ? 2.65 : 1.9) : d.cy + s / 2 + 18, `${fs}px 'Share Tech Mono', Consolas, monospace`, info.color);
+      ctx.globalAlpha = 1;
+    }
   }
   drawWeapons(sc, ox, oy, now);
 }
@@ -2522,7 +2600,7 @@ function classicBox(x, y, s, type, label, k, f, fade = 1) {
 function topExpr(e) { return Object.entries(e).sort((a, b) => b[1] - a[1])[0][0]; }
 
 /* =================== chat with the local AI =================== */
-function systemPrompt() {
+function systemPrompt(question = "") {
   const lines = [...L().prompt, "", L().obs, `- Faces in view: ${scene.count}`, `- Admin present: ${scene.admin ? "yes" : "no"}`];
   const others = faces.filter(f => f.type !== "ADMIN" && f.type !== "IRRELEVANT").map(f => `${f.type}${f.name ? " " + f.name : ""}`);
   if (others.length) lines.push(`- Registered subjects in view: ${others.join(", ")}`);
@@ -2538,6 +2616,8 @@ function systemPrompt() {
     known.forEach(p => lines.push(`- ${memorySummary(p)}`));
   }
   lines.push(`- Time: ${new Date().toLocaleString(lang === "nl" ? "nl-NL" : "en-GB")}`);
+  const facts = HOOK("facts", question);   // THE MACHINE // CORE: echte feiten uit het geheugen (wie, waar, wanneer), binnen de rechten van wie het vraagt
+  if (facts) lines.push("", facts);
   return lines.join("\n");
 }
 
@@ -2552,7 +2632,7 @@ function snapshot() {
 }
 
 async function ask(text, forceImage = false) {
-  if (!model) { print(L().noModel, "err"); return; }
+  if (!model) { if (!HOOK("offline", text)) print(L().noModel, "err"); return; }   // zonder taalmodel: antwoord uit het eigen geheugen
   busy = true; processing(true);
   const useImage = modelHasVision && (forceImage || L().vision.test(text));
   if (useImage) hudMessage("ANALYZING", "var(--red)", 1500);
@@ -2575,7 +2655,7 @@ async function ask(text, forceImage = false) {
   try {
     const r = await fetch(OLLAMA + "/api/chat", {
       method: "POST",
-      body: JSON.stringify({ model, stream: true, messages: [{ role: "system", content: systemPrompt() }, ...messages] }),
+      body: JSON.stringify({ model, stream: true, messages: [{ role: "system", content: systemPrompt(text) }, ...messages] }),
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
     const reader = r.body.getReader(), dec = new TextDecoder();
@@ -2654,6 +2734,7 @@ function setMode(m, { auto = false, silent = false } = {}) {
   $("sMode").className = "v" + (m === "DEFENSE" ? " r" : m === "SURVEILLANCE" ? " y" : "");
   $("modeTag").textContent = MODE_TAG[m];
   debugLog(`MODE -> ${m}${auto ? " (auto)" : ""}`);
+  if (!silent) HOOK("mode", m, auto);
   if (silent) return;
   if (m === "DEFENSE") hudMessage("DEFENSE PROTOCOL ENGAGED", "var(--red)");
   else if (m === "SURVEILLANCE") { hudMessage("SURVEILLANCE ACTIVE", "var(--red)"); lastScan = ""; setTimeout(() => surveillanceScan(true), 1500); }
@@ -2780,15 +2861,18 @@ function renderDebug(renderFps) {
 // deze pc kan, kan het omzeilen. Het is geen echte beveiliging. Alleen een gezouten SHA-256-hash wordt bewaard.
 const PROTECTED = ["/admin", "/tag", "/changetag", "/rename", "/mode", "/log", "/autodefense", "/train", "/forget", "/vergeet", "/style", "/lang", "/taal", "/password", "/wachtwoord",
                    "/people", "/connect", "/verbind", "/voice", "/dossier", "/note", "/voiceprint", "/cams", "/follow", "/exit", "/reboot", "/systemcheck", "/review", "/nakijken",
-                   "/console", "/timeline", "/network", "/map", "/link", "/unlink", "/case", "/cases"];
+                   "/console", "/timeline", "/network", "/map", "/link", "/unlink", "/case", "/cases",
+                   "/overview", "/numbers", "/number", "/threat", "/briefing", "/memory", "/backup", "/restore", "/export", "/import", "/watch", "/recap", "/expect"];
 const ALIAS = { "/vergeet": "/forget", "/taal": "/lang", "/wachtwoord": "/password", "/verbind": "/connect", "/suddo_admin": "/sudo_admin", "/sude_admin": "/sudo_admin", "/sudo": "/sudo_admin", "/retag": "/changetag", "/hernoem": "/rename", "/autodefence": "/autodefense", "/autodef": "/autodefense", "/file": "/dossier", "/profiel": "/dossier", "/notitie": "/note", "/notes": "/note", "/stemafdruk": "/voiceprint", "/stem": "/voiceprint", "/voiceid": "/voiceprint", "/cam": "/cams", "/camera": "/cams", "/cameras": "/cams", "/volg": "/follow", "/volgen": "/follow", "/afsluiten": "/exit", "/shutdown": "/exit", "/quit": "/exit", "/herstart": "/reboot", "/restart": "/reboot", "/opnieuw": "/reboot", "/syscheck": "/systemcheck", "/systeemcheck": "/systemcheck", "/systeemcontrole": "/systemcheck", "/check": "/systemcheck", "/diag": "/systemcheck", "/nakijken": "/review", "/herkenningen": "/review", "/reviews": "/review",
-                "/consol": "/console", "/tijdlijn": "/timeline", "/netwerk": "/network", "/kaart": "/map", "/plattegrond": "/map", "/koppel": "/link", "/ontkoppel": "/unlink", "/zaak": "/case", "/zaken": "/cases" };
+                "/consol": "/console", "/tijdlijn": "/timeline", "/netwerk": "/network", "/kaart": "/map", "/plattegrond": "/map", "/koppel": "/link", "/ontkoppel": "/unlink", "/zaak": "/case", "/zaken": "/cases",
+                "/overzicht": "/overview", "/dashboard": "/overview", "/nummers": "/numbers", "/nummer": "/number", "/dreiging": "/threat", "/sitrep": "/briefing", "/rapport": "/briefing",
+                "/geheugen": "/memory", "/herstel": "/restore" };
 // per rol: welke beschermde commando's mogen ("*" = alles), deny = uitzonderingen
 const CLEARANCE = {
   "TEMP ADMIN":        { allow: "*" },
   ADMIN:               { allow: "*" },
-  "ANALOG INTERFACE":  { allow: "*", deny: ["/admin", "/autodefense", "/exit", "/reboot", "/systemcheck", "/review"] },
-  ASSET:               { allow: "*", deny: ["/admin", "/tag", "/changetag", "/rename", "/autodefense", "/voiceprint", "/exit", "/reboot", "/systemcheck", "/review"] },
+  "ANALOG INTERFACE":  { allow: "*", deny: ["/admin", "/autodefense", "/exit", "/reboot", "/systemcheck", "/review", "/restore", "/import", "/export"] },
+  ASSET:               { allow: "*", deny: ["/admin", "/tag", "/changetag", "/rename", "/autodefense", "/voiceprint", "/exit", "/reboot", "/systemcheck", "/review", "/restore", "/import", "/export", "/backup"] },
   FRIENDLY:            { allow: ["/train", "/people", "/connect"] },
   INDIGO:              { allow: ["/train", "/people", "/connect"] },
   IRRELEVANT:          { allow: ["/connect"] },
@@ -2938,6 +3022,7 @@ function escalate(f) {
   Object.assign(f, { person: p, type: p.type, name: p.name, match: f.match ?? 0.9 });
   hudMessage("THREAT TO SYSTEM DETECTED", "var(--red)");
   caseEvent("THREAT TO SYSTEM", p.id, "UNAUTHORIZED COMMAND // THREAT TO SYSTEM");
+  HOOK("escalated", p);
 }
 
 const HOSTILE = {
@@ -2993,6 +3078,7 @@ ${p.nr ? `      ${row("SUBJECT NO.", p.nr)}
       ${row("WEAPON", m.weapons && m.weapons.length ? `${m.weapons[m.weapons.length - 1].label} // ${ago(m.weapons[m.weapons.length - 1].ts)}` : "NONE DETECTED")}
       ${row("VOICEPRINT", p.voice && p.voice.length ? `${p.voice.length} SAMPLES${p.voiceLearned && p.voiceLearned.length ? ` + ${p.voiceLearned.length} LEARNED` : ""}` : "--")}
     </div>
+    ${HOOK("dossierHtml", p) || ""}
     ${m.weapons && m.weapons.length ? `<div class="sec"><div class="lbl">WEAPON HISTORY:</div>
       ${m.weapons.slice(-6).reverse().map(w => `<div class="item"><span class="t">${shortStamp(w.ts)}</span>${E(`${w.label}${w.score != null ? " " + Math.round(w.score * 100) + "%" : ""} // ${w.level}`)}</div>`).join("")}
     </div>` : ""}
@@ -3271,12 +3357,12 @@ function observe(list, cam) {
     if (!e) for (let i = sightings.length - 1; i >= Math.max(0, sightings.length - 300); i--)
       if (sightings[i].pid === p.id && sightings[i].cam === cam) { e = sightings[i]; break; }
     if (e && now - e.e < SIGHT_GAP) { e.e = now; e.type = h.type || p.type; }
-    else { e = { pid: p.id, cam, s: now, e: now, type: h.type || p.type }; sightings.push(e); }
+    else { e = { pid: p.id, cam, s: now, e: now, type: h.type || p.type }; sightings.push(e); HOOK("sighting", e, p, cam); }
     openSight.set(k, e);
   }
   for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
     const l = links[pairKey(ids[i], ids[j])] || (links[pairKey(ids[i], ids[j])] = { n: 0, secs: 0 });
-    if (now - (l.last || 0) > TOGETHER_GAP) l.n++;
+    if (now - (l.last || 0) > TOGETHER_GAP) { l.n++; HOOK("together", ids[i], ids[j], cam, l); }
     else l.secs += Math.min(2, (now - l.last) / 1000);
     l.first = l.first || now; l.last = now;
     if (!(l.cams || (l.cams = [])).includes(cam)) l.cams.push(cam);
@@ -3359,6 +3445,7 @@ function caseEvent(kind, pid, text, cam = camNow()) {
     hudMessage(`CASE ${caseNr(c.nr)} OPENED // ${c.kind}`, "var(--red)", 4000);
     if (terminalReady) print(`CASE ${caseNr(c.nr)} OPENED // ${c.kind} // ${who} @ ${cam}`, "err");
     debugLog(`CASE ${caseNr(c.nr)} OPENED ${c.kind}`);
+    HOOK("caseOpened", c, pid, cam);
   }
   if (cOpen && cTab === "CASES") renderConsole(false);
   return c;
@@ -3367,11 +3454,13 @@ function closeCase(c, by, reason) {
   Object.assign(c, { status: "CLOSED", closedAt: Date.now(), closedBy: by, reason: reason || "" });
   c.events.push({ ts: c.closedAt, text: `CLOSED BY ${by}${reason ? " // " + reason.toUpperCase() : ""}` });
   saveCases();
+  HOOK("caseClosed", c, by);
 }
 function reopenCase(c, by) {
   Object.assign(c, { status: "OPEN", e: Date.now() }); delete c.closedAt; delete c.closedBy; delete c.reason;
   c.events.push({ ts: c.e, text: `REOPENED BY ${by}` });
   saveCases();
+  HOOK("caseReopened", c, by);
 }
 // een rol ziet een case als hij minstens één betrokkene mag zien, of als er niemand herkend is
 const mayViewCase = (role, c) => !c.pids.length || c.pids.some(id => { const p = personById(id); return !p || mayViewFile(role, p); });
@@ -3451,11 +3540,12 @@ function cCasesClick(b) {
 
 
 // ---- de console zelf ----
-const C_TABS = ["FEEDS", "SUBJECTS", "TIMELINE", "NETWORK", "CASES", "LOG", "MAP"];
+const C_TABS = ["OVERVIEW", "FEEDS", "SUBJECTS", "NUMBERS", "TIMELINE", "NETWORK", "CASES", "LOG", "MAP"];
 const C_TAB_ALIAS = { map: "MAP", kaart: "MAP", plattegrond: "MAP", feeds: "FEEDS", feed: "FEEDS", cams: "FEEDS", subjects: "SUBJECTS", subjecten: "SUBJECTS", personen: "SUBJECTS", people: "SUBJECTS",
-  timeline: "TIMELINE", tijdlijn: "TIMELINE", network: "NETWORK", netwerk: "NETWORK", cases: "CASES", case: "CASES", zaken: "CASES", zaak: "CASES", log: "LOG", logboek: "LOG" };
+  timeline: "TIMELINE", tijdlijn: "TIMELINE", network: "NETWORK", netwerk: "NETWORK", cases: "CASES", case: "CASES", zaken: "CASES", zaak: "CASES", log: "LOG", logboek: "LOG",
+  overview: "OVERVIEW", overzicht: "OVERVIEW", dashboard: "OVERVIEW", numbers: "NUMBERS", number: "NUMBERS", nummers: "NUMBERS", nummer: "NUMBERS" };
 const C_RANGES = { "1H": 3600e3, "6H": 6 * 3600e3, "24H": 86400e3, "7D": 7 * 86400e3 };
-let cOpen = false, cTab = "SUBJECTS", cRole = "IRRELEVANT", cSel = null, cRange = "24H", cGroup = "SUBJECT", cFilter = "", cTimer = null, cNetPos = {};
+let cOpen = false, cTab = "OVERVIEW", cRole = "IRRELEVANT", cSel = null, cRange = "24H", cGroup = "SUBJECT", cFilter = "", cTimer = null, cNetPos = {};
 const cPeople = () => people.filter(p => mayViewFile(cRole, p));   // alleen dossiers die deze rol mag zien
 function openConsole(tab, role) {
   cRole = role; if (tab) cTab = tab;
@@ -3466,19 +3556,24 @@ function openConsole(tab, role) {
   cTimer = setInterval(() => { if (cTab !== "NETWORK") renderConsole(false); else $("cClk").textContent = new Date().toLocaleTimeString("en-GB"); }, 2000);
   hudMessage(`CONSOLE // ${cTab}`, "var(--white)", 1500);
 }
-function closeConsole() { cOpen = false; clearInterval(cTimer); $("console").classList.remove("on"); $("cBody").innerHTML = ""; }
+function closeConsole() { cOpen = false; clearInterval(cTimer); $("console").classList.remove("on"); $("cBody").innerHTML = ""; $("cBody")._html = null; }
 function renderConsole(full) {
   if (!cOpen) return;
   $("cTabs").innerHTML = C_TABS.map((t, i) => `<button data-tab="${t}" class="${t === cTab ? "on" : ""}" title="${i + 1}">${t}</button>`).join("");
   $("cClk").textContent = new Date().toLocaleTimeString("en-GB");
   const body = $("cBody");
-  if (cTab === "FEEDS") return renderCFeeds(body, full);
-  if (cTab === "MAP") return renderCMap(body, full);
+  if (cTab === "FEEDS") { body._html = null; return renderCFeeds(body, full); }
+  if (cTab === "MAP") { body._html = null; return renderCMap(body, full); }
   // filterveld niet weggooien tijdens typen
   const keepId = document.activeElement && ["cFilt", "cNote"].includes(document.activeElement.id) ? document.activeElement.id : null;
   const keep = keepId ? document.activeElement.selectionStart : null;
   const top = body.scrollTop;
-  body.innerHTML = cTab === "SUBJECTS" ? cSubjectsHtml() : cTab === "TIMELINE" ? cTimelineHtml(body.clientWidth - 28) : cTab === "NETWORK" ? cNetworkHtml(body.clientWidth - 28) : cTab === "CASES" ? cCasesHtml() : cLogHtml();
+  const ext = HOOK("page", cTab, body.clientWidth - 28);   // pagina's van de CORE-laag: OVERVIEW, NUMBERS, LOG
+  const html = ext != null ? ext : cTab === "SUBJECTS" ? cSubjectsHtml() : cTab === "TIMELINE" ? cTimelineHtml(body.clientWidth - 28) : cTab === "NETWORK" ? cNetworkHtml(body.clientWidth - 28) : cTab === "CASES" ? cCasesHtml() : cLogHtml();
+  // niets veranderd sinds de vorige keer: de pagina laten staan (geen geflikker, tooltips en selectie blijven, minder rekenwerk)
+  if (!full && body._html === html && body._tab === cTab) return;
+  body._html = html; body._tab = cTab;
+  body.innerHTML = html;
   body.scrollTop = full ? 0 : top;
   if (keep != null && $(keepId)) { $(keepId).focus(); $(keepId).setSelectionRange(keep, keep); }
 }
@@ -3512,26 +3607,42 @@ function renderCFeeds(body, full) {
   }
 }
 
-// SUBJECTS: iedereen met een dossier dat deze rol mag zien
+// SUBJECTS: iedereen met een dossier dat deze rol mag zien, met de dreigingsanalyse van de CORE-laag
+let cSubSort = "SEEN", cSubShow = "ALL";
 function cSubjectsHtml() {
   const E = escapeHtml, list = cPeople();
   if (!list.length) return `<div class="empty">NO REGISTERED SUBJECTS</div>`;
-  const live = new Set(faces.filter(f => !f.ghost && f.person).map(f => f.person.id));
+  const live = HOOK("presentIds") || new Set(faces.filter(f => !f.ghost && f.person).map(f => f.person.id));
   feeds.forEach(f => { if (f !== mainFeed && fresh(f)) f.hits.forEach(h => h.person && live.add(h.person.id)); });
-  const rows = list.map(p => ({ p, m: mem(p), ls: lastSight(p), ln: linksOf(p).filter(l => cPeople().includes(l.other)) }))
-    .sort((a, b) => (live.has(b.p.id) - live.has(a.p.id)) || (b.m.lastSeen || 0) - (a.m.lastSeen || 0));
-  return `<div class="bar2">${list.length} SUBJECT FILE${list.length === 1 ? "" : "S"} // CLEARANCE ${E(cRole)}</div>
-  <table><tr><th></th><th>NAME</th><th>CLASSIFICATION</th><th>LAST SEEN</th><th>LAST CAMERA</th><th>SIGHTINGS</th><th>CONNECTIONS</th><th></th></tr>
-  ${rows.map(({ p, m, ls, ln }) => `<tr class="p${cSel === p.id ? " sel" : ""}" data-pid="${p.id}">
+  const col = l => l === "CRITICAL" || l === "HIGH" ? "var(--red)" : l === "ELEVATED" ? "var(--yellow)" : "var(--green)";
+  const all = list.map(p => ({ p, m: mem(p), ls: lastSight(p), ln: linksOf(p).filter(l => cPeople().includes(l.other)), a: HOOK("assessOf", p.id), nr: HOOK("numberOf", p.id) }));
+  const v = r => r.a ? Math.max(r.a.score, r.a.risk) : 0;
+  const rows = all.filter(r => cSubShow === "ALL" || (cSubShow === "THREATS" ? v(r) >= 25 : cSubShow === "NUMBERS" ? !!r.nr : live.has(r.p.id)))
+    .sort((a, b) => cSubSort === "THREAT" ? v(b) - v(a) || (b.m.lastSeen || 0) - (a.m.lastSeen || 0)
+      : cSubSort === "NAME" ? pName(a.p).localeCompare(pName(b.p))
+      : (live.has(b.p.id) - live.has(a.p.id)) || (b.m.lastSeen || 0) - (a.m.lastSeen || 0));
+  const btn = (attr, cur, x) => `<button data-${attr}="${x}" class="${x === cur ? "on" : ""}">${x}</button>`;
+  const threat = r => { const a = r.a;
+    if (!a) return "--";
+    if (a.trusted && a.risk < 25) return `<span class="sc" style="color:var(--green)">TRUSTED</span>`;
+    const risk = a.risk > a.score, val = risk ? a.risk : a.score, c = col(risk ? a.riskLevel : a.level);
+    return `<span class="sc" style="color:${c}">${risk ? "RISK" : "THREAT"} ${Math.round(val)}%</span><div class="tbar"><i style="width:${Math.max(2, val)}%;background:${c}"></i></div>`; };
+  return `<div class="bar2">${list.length} SUBJECT FILE${list.length === 1 ? "" : "S"} // CLEARANCE ${E(cRole)}
+    &nbsp; SHOW ${["ALL", "THREATS", "NUMBERS", "IN VIEW"].map(x => btn("sshow", cSubShow, x)).join("")}
+    &nbsp; SORT ${["SEEN", "THREAT", "NAME"].map(x => btn("ssort", cSubSort, x)).join("")}</div>
+  ${rows.length ? `<table><tr><th></th><th>NAME</th><th>CLASSIFICATION</th><th>ASSESSMENT</th><th>ROLE</th><th>LAST SEEN</th><th>LAST CAMERA</th><th>SIGHTINGS</th><th>CONNECTIONS</th><th></th></tr>
+  ${rows.map(({ p, m, ls, ln, a, nr }) => `<tr class="p${cSel === p.id ? " sel" : ""}" data-pid="${p.id}">
     <td style="--c:${TYPES[p.type].color}">${m.photo ? `<img src="${m.photo}" alt="">` : `<div class="noimg"></div>`}</td>
-    <td>${E(pName(p))}${p.nr && p.nr !== p.name ? ` <span class="ax">#${E(p.nr)}</span>` : ""}</td>
+    <td>${E(pName(p))}${HOOK("watched", p.id) ? ` <span style="color:var(--red)" title="ON WATCHLIST">&#9673;</span>` : ""}${p.nr && p.nr !== p.name ? ` <span class="ax">#${E(p.nr)}</span>` : ""}</td>
     <td>${tyTag(p.type)}</td>
+    <td>${threat({ a })}</td>
+    <td>${a && a.role !== "NONE" ? a.role : "--"}${nr ? `<br><span style="color:${nr.list === "RELEVANT" ? "var(--red)" : "var(--yellow)"};font-size:10px">NUMBER ${E(nr.ssn)}</span>` : ""}</td>
     <td class="${live.has(p.id) ? "live" : ""}">${live.has(p.id) ? "IN VIEW" : m.lastSeen ? E(ago(m.lastSeen)) : "--"}</td>
     <td>${ls ? E(ls.cam) : "--"}</td>
     <td>${m.sightings || 0}</td>
     <td>${ln.length ? E(ln.slice(0, 3).map(l => pName(l.other)).join(", ")) + (ln.length > 3 ? ` +${ln.length - 3}` : "") : "--"}</td>
     <td style="white-space:nowrap"><button data-go="TIMELINE">TIMELINE</button> <button data-go="NETWORK">NETWORK</button> <button data-file="1">FILE</button></td>
-  </tr>`).join("")}</table>`;
+  </tr>`).join("")}</table>` : `<div class="empty">NO SUBJECTS MATCH THIS FILTER</div>`}`;
 }
 
 // TIMELINE: wie wanneer bij welke camera; per subject of per camera
@@ -3653,7 +3764,7 @@ saveMap();                          // camera's van een vorige sessie ook uit de
 const camKey = tag => String(tag || "").replace(/^CAM_\d+_/, "");
 const mapAdmin = () => cRole === "ADMIN" || cRole === "TEMP ADMIN";
 function saveMap() {
-  try { localStorage.setItem(STORE.map, JSON.stringify({ ...mapManual(mapCfg), cams: {} })); }   // alleen de plattegrond blijft bewaard, de camera's niet
+  try { if (window.MachineUI && MachineUI.storeFrozen) return; localStorage.setItem(STORE.map, JSON.stringify({ ...mapManual(mapCfg), cams: {} })); HOOK("stored", STORE.map, true); }   // alleen de plattegrond blijft bewaard, de camera's niet
   catch (e) { hudMessage("MAP NOT SAVED // FLOORPLAN TOO LARGE", "var(--red)", 3000); }
 }
 // wie staat nu (of net nog) bij welke camera: { NAAM: [{ s, live, ago }] }
@@ -5140,11 +5251,13 @@ $("console").addEventListener("click", e => {
 setInterval(() => { if (cOpen && cTab === "MAP") renderConsole(false); }, 1000);
 
 $("console").addEventListener("click", e => {
-  const b = e.target.closest("[data-tab],[data-range],[data-group],[data-go],[data-file],[data-sel],[data-feed],[data-cshow],[data-cclose],[data-creopen],[data-cnote],[data-ctime],.nd,rect.sg,tr.p");
+  const b = e.target.closest("[data-tab],[data-range],[data-group],[data-go],[data-file],[data-sel],[data-feed],[data-cshow],[data-cclose],[data-creopen],[data-cnote],[data-ctime],[data-ssort],[data-sshow],.nd,rect.sg,tr.p");
   if (!b) return;
   const pid = (b.closest("[data-pid]") || {}).dataset?.pid;
   if (b.dataset.tab) { cTab = b.dataset.tab; return renderConsole(true); }
   if (cTab === "CASES" && cCasesClick(b)) return;
+  if (b.dataset.ssort) { cSubSort = b.dataset.ssort; return renderConsole(false); }
+  if (b.dataset.sshow) { cSubShow = b.dataset.sshow; return renderConsole(false); }
   if (b.dataset.range) { cRange = b.dataset.range; return renderConsole(false); }
   if (b.dataset.group) { cGroup = b.dataset.group; return renderConsole(false); }
   if (b.dataset.sel != null) { cSel = null; cCaseSel = null; return renderConsole(false); }
@@ -5161,7 +5274,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "F2") { e.preventDefault(); if (cOpen) closeConsole(); else if (terminalReady && !busy && !pendingSecret) submit("/console"); return; }
   if (!cOpen || pendingSecret) return;
   if (e.key === "Escape") return closeConsole();
-  // 1-6 = tabblad, maar niet tijdens typen in de terminal of het filterveld
+  // 1-9 = tabblad, maar niet tijdens typen in de terminal of het filterveld
   if (/^[1-9]$/.test(e.key) && C_TABS[+e.key - 1] && !["INPUT", "TEXTAREA"].includes((document.activeElement || {}).tagName)) { cTab = C_TABS[+e.key - 1]; renderConsole(true); }
 });
 new ResizeObserver(() => { if (cOpen && (cTab === "MAP" || cTab === "TIMELINE" || cTab === "NETWORK")) renderConsole(false); }).observe($("feed"));
@@ -5567,6 +5680,7 @@ async function registerFace(type, name, target = null) {
   people = people.filter(p => !replaced(p));
   people.push({ id: prev ? prev.id : newId(), nr: prev ? prev.nr : undefined, type, name: name || type.toLowerCase(), descriptors: samples, voice: prev ? prev.voice : [], voiceLearned: prev ? prev.voiceLearned || [] : [] });   // zelfde persoon = geheugen en stem blijven
   savePeople();
+  HOOK("profile", prev ? "RE-REGISTERED" : "REGISTERED", people[people.length - 1]);
   return true;
 }
 
@@ -5713,16 +5827,21 @@ async function command(raw) {
   const c = ALIAS[cmd.toLowerCase()] || cmd.toLowerCase();
   if (PROTECTED.includes(c)) {
     const role = currentRole();
-    if (!mayRun(role, c)) {
+    // eerste start: zolang er geen ADMIN bestaat mag iedereen /admin, anders kan niemand ooit ADMIN worden
+    // (en werd de eerste gebruiker meteen THREAT TO SYSTEM)
+    const bootstrap = c === "/admin" && !people.some(p => p.type === "ADMIN");
+    if (!mayRun(role, c) && !bootstrap) {
       print(`ACCESS DENIED // ${role} CLEARANCE INSUFFICIENT`, "err");
       debugLog(`DENIED ${c} ${role}`);
+      HOOK("denied", c, role, speaker());
       hudMessage("ACCESS DENIED", "var(--red)");
       // (i)threats bij elk commando, en iedereen die zonder recht /admin, /exit of /reboot probeert, wordt THREAT TO SYSTEM
       if ((CLEARANCE[role] && CLEARANCE[role].escalate) || ["/admin", "/exit", "/reboot"].includes(c)) escalate(speaker());
       return;
     }
-    print(`ACCESS GRANTED // ${role} CLEARANCE`, "ok");
+    print(bootstrap && !mayRun(role, c) ? "ACCESS GRANTED // NO ADMIN REGISTERED" : `ACCESS GRANTED // ${role} CLEARANCE`, "ok");
     debugLog(`GRANTED ${c} ${role}`);
+    HOOK("granted", c, role, speaker());
   }
   switch (c) {
     case "/help": print(helpFor(currentRole())); break;
@@ -5823,6 +5942,7 @@ async function command(raw) {
       if (p.name === old.toLowerCase()) p.name = p.nr || type.toLowerCase();   // standaardnaam -> nummer
       p.type = type;
       savePeople();
+      HOOK("profile", `RECLASSIFIED ${old} > ${type}`, p);
       faces.forEach(f => { if (f.person === p) { f.type = type; f.name = p.name; } });
       hudMessage(`SUBJECT RECLASSIFIED // ${type}`, TYPES[type].color);
       await typeOut(L().changed(p.name.toUpperCase(), old, type));
@@ -5859,6 +5979,7 @@ async function command(raw) {
       const old = p.name;
       p.name = name;
       savePeople();
+      HOOK("profile", `RENAMED FROM ${old.toUpperCase()}`, p);
       faces.forEach(f => { if (f.person === p) f.name = p.name; });
       hudMessage(`SUBJECT RENAMED // ${name.toUpperCase()}`, TYPES[p.type].color);
       await typeOut(L().renamed(old.toUpperCase(), name.toUpperCase()));
@@ -5899,11 +6020,12 @@ async function command(raw) {
       break;
     case "/forget": case "/vergeet": {
       const n = (args.join(" ") || "").toLowerCase();
-      if (n === "all" || n === "alles") { people = []; memory = {}; savePeople(); saveMemory(); closeDossier(); await typeOut(L().forgot("all")); break; }
+      if (n === "all" || n === "alles") { people = []; memory = {}; savePeople(); saveMemory(); closeDossier(); HOOK("profile", "ALL PROFILES ERASED", null); await typeOut(L().forgot("all")); break; }
       const before = people.length;
       people = people.filter(p => p.name.toLowerCase() !== n && p.type.toLowerCase() !== n && p.nr !== n.replace(/^#/, ""));
       if (people.length === before) { print(L().notFound, "err"); break; }
       savePeople(); saveMemory();
+      HOOK("profile", `PROFILE ERASED // ${n.toUpperCase()}`, null);
       if (dossierOf && !people.includes(dossierOf)) closeDossier();
       await typeOut(L().forgot(n));
       break;
@@ -5915,7 +6037,7 @@ async function command(raw) {
       print(`CONSOLE // ${cTab}   (F2 / Esc closes, 1-${C_TABS.length} = page)`, "ok");
       break;
     }
-    case "/cases": openConsole("CASES", currentRole()); print("CONSOLE // CASES   (F2 / Esc closes, 1-6 = page)", "ok"); break;
+    case "/cases": openConsole("CASES", currentRole()); print(`CONSOLE // CASES   (F2 / Esc closes, 1-${C_TABS.length} = page)`, "ok"); break;
     case "/case": {
       const role = currentRole(), c = caseByNr((args[0] || "").replace(/^#/, "")), act = (args[1] || "").toLowerCase(), text = args.slice(2).join(" ");
       if (!c || !mayViewCase(role, c)) { print(args[0] ? `CASE ${args[0]} NOT FOUND` : "Usage: /case <nr> [close|open|note] [text]   (/cases = list)", args[0] ? "err" : "warn"); break; }
@@ -6086,7 +6208,7 @@ async function command(raw) {
       print(RV().opened(reviews.filter(e => !e.st).length), "ok");
       break;
     }
-    default: print(L().unknown, "err");
+    default: if (!(await HOOK("command", c, args, raw))) print(L().unknown, "err");
   }
 }
 
@@ -6112,6 +6234,17 @@ function autoFullscreen(e) {
   if (!isFullscreen()) document.documentElement.requestFullscreen?.().catch(() => {});
 }
 
+</script>
+<!-- THE MACHINE // CORE: schermcode van de denklaag (gebruikt de haakjes HOOK(...) hierboven) -->
+<script src="ui/core-ui.js"></script>
+<script src="ui/log.js"></script>
+<script src="ui/numbers.js"></script>
+<script src="ui/overview.js"></script>
+<script src="ui/views.js"></script>
+<script src="ui/briefing.js"></script>
+<script src="ui/assist.js"></script>
+<script src="ui/memorycore.js"></script>
+<script>
 setMode(mode, { silent: true });
 boot();
 </script>

@@ -1,0 +1,125 @@
+/* THE MACHINE // CORE: opmaak van de denklaag (ANALYSIS FEED, nummers, OVERVIEW, dossier-analyse, simulatie) */
+
+/* ---------- ANALYSIS FEED: lopende regels linksonder op het beeld ---------- */
+#afeed { position: absolute; left: 20px; bottom: 96px; z-index: 6; width: min(560px, 46%); pointer-events: none;
+  font-size: 11px; letter-spacing: .08em; line-height: 1.45; text-shadow: 0 0 4px #000; }
+#afeed:empty { display: none; }
+body[data-mode="STANDBY"] #afeed { display: none; }
+#afeed .h { color: var(--white); background: rgba(0,0,0,.82); padding-left: 6px; font-size: 10px; letter-spacing: .25em; border-bottom: 1px solid rgba(242,242,242,.25); margin-bottom: 2px; width: max-content; padding-right: 12px; }
+#afeed .r { display: flex; gap: 8px; background: rgba(0,0,0,.82); padding: 0 6px; white-space: nowrap; overflow: hidden; }
+#afeed .r .t { color: var(--grey); flex: none; }
+#afeed .r .c { flex: none; width: 62px; color: var(--grey); }
+#afeed .r .m { overflow: hidden; text-overflow: ellipsis; }
+#afeed .r.n .c, #afeed .r.n .m { color: var(--white); }
+#afeed .r.i .m { color: #bdbdbd; }
+#afeed .r.w .c, #afeed .r.w .m { color: var(--yellow); }
+#afeed .r.a .c, #afeed .r.a .m { color: var(--red); }
+#afeed .r.a { border-left: 2px solid var(--red); }
+#afeed .r.w { border-left: 2px solid var(--yellow); }
+
+/* ---------- nieuw nummer: kaart midden boven in beeld ---------- */
+#numCard { display: none; position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 8; min-width: 340px; text-align: center;
+  background: rgba(0,0,0,.88); border: 1px solid var(--yellow); box-shadow: 0 0 34px rgba(245,217,10,.35); letter-spacing: .12em; }
+#numCard.on { display: block; animation: numIn .5s ease-out; }
+#numCard.rel { border-color: var(--red); box-shadow: 0 0 34px rgba(255,42,42,.4); }
+@keyframes numIn { from { opacity: 0; transform: translateX(-50%) scale(1.15); } to { opacity: 1; transform: translateX(-50%); } }
+#numCard .h { background: var(--yellow); color: #000; font-size: 13px; padding: 2px 10px; letter-spacing: .3em; }
+#numCard.rel .h { background: var(--red); color: #fff; }
+#numCard .ssn { font-family: var(--term); font-size: 46px; line-height: 1; padding: 10px 16px 2px; color: var(--white); letter-spacing: .08em; }
+#numCard .who { font-size: 14px; padding: 0 16px 4px; }
+#numCard .meta { font-size: 11px; color: var(--grey); padding: 0 16px 10px; }
+
+/* ---------- simulatie-banner ---------- */
+#demoTag { display: none; top: 44px; left: 340px; padding: 1px 10px; background: var(--blue); color: #fff; font-size: 11px; white-space: nowrap; z-index: 6; }
+body.demo #demoTag { display: block; }
+body.demo #console .chead { background: #cfe0ff; }
+
+/* ---------- dossier: dreigingsanalyse en leefpatroon ---------- */
+#dossier .core .row .v { color: var(--white); }
+#dossier .tbar, #console .tbar { height: 4px; background: #1c1c1c; margin: 1px 0 4px; }
+#dossier .tbar i, #console .tbar i { display: block; height: 100%; }
+#dossier .fac, #console .fac { display: grid; grid-template-columns: 38px 1fr; column-gap: 6px; font-size: 11px; padding: 1px 0; }
+#dossier .fac .w, #console .fac .w { color: var(--red); text-align: right; }
+#dossier .fac .d, #console .fac .d { grid-column: 2; color: var(--grey); font-size: 10px; overflow-wrap: anywhere; }
+.heat { margin: 4px 0; }
+.heat .hr, .heat .hx { display: grid; grid-template-columns: 12px repeat(24, 1fr); gap: 1px; margin-bottom: 1px; align-items: center; }
+.heat .hr span { color: var(--grey); font-size: 9px; }
+.heat .hr i { display: block; height: 8px; background: var(--green); }
+.heat .hr { background: linear-gradient(#101010, #101010) 13px 0 / calc(100% - 13px) 100% no-repeat; }
+.heat .hx b { grid-column: span 6; color: var(--grey); font-size: 9px; font-weight: normal; }
+
+/* ---------- console: OVERVIEW ---------- */
+#cOv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+#cOv .pn { border: 1px solid #262626; background: #050505; padding: 8px 10px 10px; min-width: 0; }
+#cOv .pn.w2 { grid-column: span 2; }
+#cOv .pn > .hd { display: flex; justify-content: space-between; gap: 8px; color: var(--grey); font-size: 10px; letter-spacing: .2em; border-bottom: 1px solid #222; padding-bottom: 4px; margin-bottom: 8px; }
+#cOv .pn > .hd button { padding: 0 6px; font-size: 10px; letter-spacing: .12em; color: var(--grey); border-color: #444; }
+#cOv .big { font-family: var(--term); font-size: 44px; line-height: 1; letter-spacing: .06em; }
+#cOv .sub { color: var(--grey); font-size: 10px; letter-spacing: .12em; margin-top: 2px; }
+#cOv .row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 1px solid #151515; font-size: 12px; }
+#cOv .row .v { color: var(--grey); text-align: right; white-space: nowrap; }
+#cOv .row.p { cursor: pointer; }
+#cOv .row.p:hover { background: #0d0d0d; }
+#cOv .row .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cOv .ev { display: flex; gap: 8px; font-size: 11px; padding: 1px 0; border-bottom: 1px solid #111; }
+#cOv .ev .t { color: var(--grey); flex: none; }
+#cOv .ev .c { color: var(--grey); width: 62px; flex: none; }
+#cOv .ev .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cOv .s2 .c, #cOv .s2 .m, #cLog .row.s2 .k, #cLog .row.s2 .m { color: var(--yellow); }
+#cOv .s3 .c, #cOv .s3 .m { color: var(--red); }
+#cOv .nonef { color: var(--grey); font-size: 11px; letter-spacing: .15em; padding: 6px 0; }
+#cOv svg .spark { fill: none; stroke-width: 1.5; }
+#cOv svg .area { opacity: .18; }
+#cOv .cnt { display: flex; gap: 18px; align-items: baseline; }
+#cOv .cnt .big { font-size: 36px; }
+#cOv .cnt span { color: var(--grey); font-size: 10px; letter-spacing: .15em; }
+@media (max-width: 1100px) { #cOv { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cOv .pn.w2 { grid-column: span 2; } }
+@media (max-width: 700px) { #cOv { grid-template-columns: minmax(0, 1fr); } #cOv .pn.w2 { grid-column: auto; } }
+
+/* ---------- console: NUMBERS ---------- */
+#cNum { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+#cNum .col > .hd { font-size: 13px; letter-spacing: .3em; padding: 3px 8px; margin-bottom: 8px; }
+#cNum .col.rel > .hd { background: var(--red); color: #fff; }
+#cNum .col.irr > .hd { background: var(--white); color: #000; }
+#cNum .card { border: 1px solid #333; background: #050505; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; }
+#cNum .card:hover { border-color: var(--white); }
+#cNum .card.sel { border-color: var(--yellow); }
+#cNum .card .ssn { font-family: var(--term); font-size: 30px; line-height: 1; letter-spacing: .08em; }
+#cNum .card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+#cNum .card .who { font-size: 13px; margin: 4px 0; }
+#cNum .card .meta { color: var(--grey); font-size: 10px; letter-spacing: .1em; }
+#cNum .card .row { display: flex; justify-content: space-between; font-size: 11px; }
+#cNum .card .act { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+#cNum .card button, #cNumOld button { padding: 1px 6px; font-size: 10px; letter-spacing: .12em; }
+#cNum .card input { flex: 1; min-width: 80px; background: #000; border: 1px solid #444; color: var(--white); font: inherit; font-size: 11px; padding: 1px 6px; outline: none; }
+#cNum .role { color: #000; padding: 0 5px; font-size: 11px; white-space: nowrap; }
+#cNum .hist { margin-top: 6px; border-top: 1px solid #222; padding-top: 4px; font-size: 10px; color: var(--grey); }
+#cNum .nonef { color: var(--grey); letter-spacing: .15em; padding: 14px 0; font-size: 11px; }
+@media (max-width: 800px) { #cNum { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- console: LOG met categorieën ---------- */
+#console .chips button .n { color: #666; margin-left: 4px; }
+#console .chips button.on .n { color: #444; }
+#cLog .row.s3 .k, #cLog .row.s3 .m { color: var(--red); }
+#cLog .row.s0 .m { color: #bdbdbd; }
+
+/* ---------- SUBJECTS: dreigingskolom ---------- */
+#console td .tbar { width: 70px; margin: 2px 0 0; }
+#console td .sc { font-size: 11px; white-space: nowrap; }
+
+/* ---------- TIMELINE: legenda en knoppen ---------- */
+#console .tlLegend { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin: 4px 0 0 150px; font-size: 10px; color: var(--grey); letter-spacing: .12em; }
+#console .tlLegend svg { display: inline-block; width: 12px; }
+#console .bar2 .ax { color: var(--grey); font-size: 11px; margin: 0 6px; }
+#console button[disabled] { opacity: .3; pointer-events: none; }
+#cLog .row[data-pid] { cursor: pointer; }
+#cNetSvg .nd { cursor: grab; }
+#cNetSvg { user-select: none; touch-action: none; }
+
+/* ---------- terminal: hulpregel boven de invoer (Tab-aanvulling) ---------- */
+#inHint { min-height: 0; padding: 0 14px; display: flex; flex-wrap: wrap; gap: 4px 10px; font-family: var(--hud); font-size: 11px; letter-spacing: .1em; color: var(--green-dim); }
+#inHint:empty { display: none; }
+#inHint span { white-space: nowrap; text-transform: uppercase; }
+#inHint span.on { color: #000; background: var(--green); padding: 0 4px; }
+#inHint .k { margin-left: auto; border: 1px solid var(--green-dim); padding: 0 4px; font-size: 9px; opacity: .7; }
+#inHint .more { opacity: .6; }

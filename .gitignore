@@ -12,6 +12,8 @@ signal/
 *.pem
 *.key
 _te_verwijderen/
+# geheugen van The Machine op schijf (profielen, gezichtsdata, notities)
+data/
 
 # --- Logboeken (IP-adressen, tunneladressen, verbindingen) ---
 *.log
