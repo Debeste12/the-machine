@@ -12,7 +12,7 @@
 ![Runs](https://img.shields.io/badge/runs-100%25%20local-33ff66)
 ![Stars](https://img.shields.io/github/stars/Debeste12/the-machine?style=social)
 
-<img src="GIT-Picture/terminal.png" alt="The Machine recognizing its ADMIN in real time" width="800">
+<img src="GIT-Picture/demo.gif" alt="The Machine recognizing people in real time" width="720">
 
 **[Quick start](#quick-start)** · **[Screenshots](#screenshots)** · **[Features](#features)** · **[The console](#the-console)**
 
@@ -36,33 +36,54 @@ Double-click **`start.bat`**, sit in front of your webcam and type `/admin`. Tha
 
 ## Screenshots
 
+### The console (F2)
+
 | | |
 |---|---|
-| ![Subject file](GIT-Picture/dossier-asset.png) | ![Defense mode](GIT-Picture/defense.png) |
-| **Subject file** (`/dossier`) with age, sightings, emotion and notes | **Defense mode**: an unknown face trying `/admin` becomes THREAT TO SYSTEM |
-| ![Console map](GIT-Picture/console-map.png) | ![Console network](GIT-Picture/console-network.png) |
-| **Console map** after AUTO LAYOUT: rooms named by gemma3 | **Network**: who knows who |
-| ![Subjects](GIT-Picture/console-subjects.png) | ![Timeline](GIT-Picture/console-timeline.png) |
-| **Console subjects**: every known person and their role | **Timeline**: who was at which camera and when |
+| ![Overview](GIT-Picture/console/01-overview.png) | ![Subjects](GIT-Picture/console/03-subjects.png) |
+| **Overview**: threat level, numbers, cases and the latest events | **Subjects**: every known person and their role |
+| ![Numbers](GIT-Picture/console/04-numbers.png) | ![Timeline](GIT-Picture/console/05-timeline.png) |
+| **Numbers**: who is in danger or dangerous | **Timeline**: who was at which camera and when |
+| ![Network](GIT-Picture/console/06-network.png) | ![Cases](GIT-Picture/console/07-cases.png) |
+| **Network**: who knows who | **Cases**: threats become numbered cases |
+
+### Threat assessment and memory
+
+| | |
+|---|---|
+| ![Subject file with threat assessment](GIT-Picture/console/10-dossier-threat.png) | ![Recap](GIT-Picture/console/13-recap.png) |
+| **Subject file** with threat and risk score and the reasons behind it | **Recap** (`/recap`): what happened while you were away |
+| ![Watch](GIT-Picture/console/12-watch.png) | ![Memory core](GIT-Picture/console/11-memory-core.png) |
+| **Watch list** (`/watch`): alert as soon as a subject comes into view | **Memory core** (`/memory`): what is stored in the browser and on disk |
+
+### Live recognition
+
+| | |
+|---|---|
+| ![Subway station](GIT-Picture/live-metro.png) | ![Station stairs](GIT-Picture/live-stairs.png) |
+| **Subway station**: every person is tracked and classified | **Station stairs**: recognition in a busy crowd |
 
 <details>
 <summary><b>More screenshots</b></summary>
 
 | | |
 |---|---|
-| ![Feeds](GIT-Picture/console-feeds.png) | ![Cases](GIT-Picture/console-cases.png) |
-| **Feeds**: all cameras at once | **Cases**: threats become numbered cases |
-| ![Admin file](GIT-Picture/dossier.png) | ![Chat](GIT-Picture/chat.png) |
-| **ADMIN file** with a note | **Chat** with The Machine through gemma3 |
-| ![Startup](GIT-Picture/startup.png) | ![Access denied](GIT-Picture/access-denied.png) |
-| **System startup** | **Access denied** without clearance |
+| ![Feeds](GIT-Picture/console/02-feeds.png) | ![Map](GIT-Picture/console/09-map.png) |
+| **Feeds**: all cameras at once | **Map**: floor plan with cameras and walking routes |
+| ![Log](GIT-Picture/console/08-log.png) | ![Defense mode](GIT-Picture/defense.png) |
+| **Log**: everything The Machine notices | **Defense mode**: an unknown face trying `/admin` becomes THREAT TO SYSTEM |
+| ![Chat](GIT-Picture/chat.png) | ![Startup](GIT-Picture/startup.png) |
+| **Chat** with The Machine through gemma3 | **System startup** |
 
 </details>
 
-> **About these screenshots:** they were made by an AI assistant that ran The Machine in a separate test browser, with two free stock videos from Pexels as camera input instead of a real webcam:
-> [A Man Walking While Looking at Camera](https://www.pexels.com/video/a-man-walking-while-looking-at-camera-6153696/) (cottonbro studio) and
-> [A Man Walking Towards the Camera](https://www.pexels.com/video/a-man-walking-towards-the-camera-5320110/).
-> Everything you see (recognition, files, map, cases) was really produced by The Machine, but the people are stock footage actors and the names and notes are made up. No one's private data is shown.
+> **About these screenshots:** they were made in a separate test browser, with free stock videos from Pexels as camera input instead of a real webcam:
+> [New York subway station](https://www.pexels.com/video/34573860/),
+> [Kamakura station stairs](https://www.pexels.com/video/34654547/),
+> [Train station](https://www.pexels.com/video/12102022/),
+> [Grand Central Terminal](https://www.pexels.com/video/19415219/) and
+> [Airport](https://www.pexels.com/video/30386293/) (all under the [Pexels license](https://www.pexels.com/license/)).
+> The recognition boxes were really drawn by The Machine. People in the videos only appear as IRRELEVANT or UNKNOWN. The profiles, numbers, cases and threat scores come from a made-up demo memory; the names are fictional and not linked to anyone in the videos.
 
 ## Features
 

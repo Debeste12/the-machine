@@ -31,3 +31,6 @@ whisper/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# --- Testvideo's (Pexels-licentie: niet herverspreiden) ---
+testvideos/
