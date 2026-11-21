@@ -73,9 +73,13 @@ Double-click **`start.bat`**, sit in front of your webcam and type `/admin`. Tha
 | **Voice recognition** | Speech input via whisper.cpp (GPU) and speaker recognition with voiceprints |
 | **Object & weapon detection** | YOLOX-nano person detection and a separate weapon detection model |
 | **Multi-camera** | Use phones as extra cameras over HTTPS (local network or via a Cloudflare tunnel) |
-| **Local AI** | Chat with The Machine through Ollama (`gemma3:12b`), which can also look at the camera image |
+| **Local AI** | Chat with The Machine through Ollama (`gemma3:12b`), which can also look at the camera image and answers with facts from its own memory |
 | **Dossiers & memory** | Subject files with notes per person; say "remember ..." in the chat to store something |
-| **Console** | Second screen (F2) with feeds, subjects, timeline, network, cases, log and a floor plan with AUTO LAYOUT |
+| **Threat assessment** | Every subject gets a threat and risk score, with the reasons behind it |
+| **Numbers** | The Machine issues numbers by itself when someone is in danger or is dangerous |
+| **Patterns of life** | Learns who usually shows up where and when, and raises an alert on deviations |
+| **Memory core** | Everything is also saved to disk (`data/`), with snapshots, backup, restore, export and import |
+| **Console** | Second screen (F2) with an overview, feeds, subjects, numbers, timeline, network, cases, log and a floor plan with AUTO LAYOUT |
 | **Modes** | Monitoring, surveillance (visitor log), defense, standby and debug |
 | **Clearance levels** | Commands are only allowed for the role of the face in front of the desk camera |
 | **Two languages** | English and Dutch (`/lang en` or `/lang nl`) |
@@ -172,6 +176,11 @@ The **PROCESSOR** column should say `100% GPU`. If it says something like `40%/6
 | `/mode [name]` | Switch between monitoring, surveillance, defense, standby and debug |
 | `/voiceprint [name]` | Record a voiceprint |
 | `/console [page]` | Open the console (F2), see below |
+| `/threat [name]` | Threat assessment of a subject, with the reasons |
+| `/briefing` | Situation report: threat level, numbers, cases, who was seen |
+| `/watch <name>` | Alert as soon as that subject comes into view (`/watch` = list) |
+| `/recap [hours]` | What happened while you were away |
+| `/expect` | Who is expected this hour, based on the patterns of life |
 | `/review` | Check recent recognitions and correct them (ADMIN only) |
 | `/systemcheck` | Check AI, voice, cameras, models, server and tunnel |
 | `/reboot` / `/exit` | Restart or shut down everything |
@@ -182,22 +191,25 @@ Voice input: press the **MIC** button or **Ctrl+Space**.
 
 Press **F2** (or type `/console`) to open the console: a second screen with an overview of everything The Machine has seen. Press F2 or Esc to close it again. Inside the console, `/help` shows the console commands.
 
-The console has seven pages. Switch with the keys **1-7** or with `/console <page>`:
+The console has nine pages. Switch with the keys **1-9** or with `/console <page>`:
 
 | Page | What you see |
 |---|---|
-| **1 FEEDS** | All camera feeds; click one to make it the main view |
-| **2 SUBJECTS** | Everyone The Machine knows, with their role; FILE opens the subject file |
-| **3 TIMELINE** | Who was at which camera and when; RANGE and GROUP buttons on top |
-| **4 NETWORK** | Who knows who and who was seen together; click a person to see their connections |
-| **5 CASES** | Threats and weapons as numbered cases, OPEN or ALL |
-| **6 LOG** | Visitor log from surveillance mode |
-| **7 MAP** | Floor plan with your cameras, who is where and walking routes |
+| **1 OVERVIEW** | Threat level over 24 hours, numbers, cases, who is where and the latest events |
+| **2 FEEDS** | All camera feeds; click one to make it the main view |
+| **3 SUBJECTS** | Everyone The Machine knows, with their role; FILE opens the subject file |
+| **4 NUMBERS** | Active and resolved numbers: who is in danger or dangerous |
+| **5 TIMELINE** | Who was at which camera and when; RANGE and GROUP buttons on top |
+| **6 NETWORK** | Who knows who and who was seen together; click a person to see their connections |
+| **7 CASES** | Threats and weapons as numbered cases, OPEN or ALL |
+| **8 LOG** | One log for everything The Machine notices, filterable by category, severity and text |
+| **9 MAP** | Floor plan with your cameras, who is where and walking routes |
 
 Console commands:
 
 | Command | What it does |
 |---|---|
+| `/number <nr> [close [reason]]` | Show or close a number |
 | `/case <nr> [close\|open\|note] [text]` | Show, close, reopen or add a note to a case |
 | `/link <a> + <b> [relation]` | Store a relation between two people; `/link <name>` shows connections |
 | `/unlink <a> + <b>` | Remove a stored relation |
@@ -208,6 +220,17 @@ Console commands:
 **Map editing (ADMIN only):** on the MAP page, EDIT lets you drag and rotate cameras. **AUTO LAYOUT** lets gemma3 look at each camera, name the room (KITCHEN, HALLWAY ...) and place the cameras using the walking routes from the timeline. UNDO AUTO restores the previous map and CLEAR ROOMS removes the room boxes.
 
 The console only shows what your role is allowed to see (ADMIN, ANALOG INTERFACE and ASSET can open it).
+
+## Memory core
+
+The Machine keeps its memory in the browser and also on disk, in the `data/` folder next to `index.html` (`data/state.json` plus snapshots in `data/snapshots/`). This folder is never uploaded to Git.
+
+| Command | What it does |
+|---|---|
+| `/memory` | Show what is stored in the browser and on disk |
+| `/backup` | Write a snapshot to disk now |
+| `/restore [date]` | Load a snapshot from disk (`/restore` alone lists them) |
+| `/export` / `/import` | Save everything to one file, or load such a file |
 
 ## Adding a phone as a camera
 
@@ -225,6 +248,9 @@ signal.ps1          signalling for the camera connections
 setup.ps1           first-run installer (whisper, Ollama, gemma3:12b)
 ollama.ps1          starts Ollama
 weapon-worker.js    weapon detection in a background worker
+core/               analysis: threat score, numbers, patterns of life, events, memory
+ui/                 console pages (overview, numbers, log ...) and the memory core
+data/               memory on disk (created on first start, not in Git)
 lib/                face-api.js and ONNX Runtime
 models/             face, voice, person and weapon models
 ```
@@ -232,7 +258,7 @@ models/             face, voice, person and weapon models
 ## Privacy
 
 - Everything runs locally. No camera images, faces or voices are sent anywhere.
-- Face and voice profiles, dossiers and settings are stored in your browser (localStorage), not in this repository.
+- Face and voice profiles, dossiers and settings are stored in your browser (localStorage) and in the local `data/` folder, never in this repository.
 - The pairing code, certificates, signalling files and logs are excluded through `.gitignore`.
 - Only use it on people who know about it and agree.
 
